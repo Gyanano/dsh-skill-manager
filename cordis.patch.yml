@@ -1,0 +1,5 @@
+# 侧边栏「技能」枢纽：全局 Skill/MCP 开关与工作区精细控制。
+
+- insert:
+    - id: skill-manager
+      name: dsh-skill-manager
