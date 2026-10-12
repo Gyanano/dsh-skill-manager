@@ -2,72 +2,57 @@
 
 [English](README.md) | 中文
 
-一个 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 插件：在 DSH 侧边栏新增「技能」枢纽，集中管理全部全局 Skill 与 MCP 服务器的启用状态，并支持在会话输入框内按工作区做精细控制。
-
-基于 DSH Desktop `0.2.0-rc.2`（`@deepseek-ai/dsh 0.2.x`）开发并实测。
+用于 DeepSeek Harness Desktop 0.2.0-rc.2 的第三方技能管理插件。
 
 ## 功能
 
-### 侧边栏「技能」面板
+- 「技能」页管理已扫描文件技能的全局启停；内存注册技能只读。
+- 「添加技能」支持 GitHub 公共仓库 URL、本地文件夹绝对路径。扫描后列出 SKILL.md 候选，由用户复选需要的技能，再复制完整技能目录到 `<DSH_HOME>/skills`。不执行脚本，不覆盖现有同名目录或文件技能。
+- 仓库 URL 支持 `https://github.com/owner/repo`，或单段明确分支的 `/tree/branch`；不支持私有仓库、子目录 URL、带斜杠的分支。GitHub 导入依赖本机 git。
+- 「工作区设置」页签选择 DSH 工作区后管理项目技能、全局技能的项目级覆盖及 MCP 调用门禁。输入框齿轮也提供同一控制面板。
+- MCP 全局开关调用官方 Plugin Manager；外部服务和 MCP 添加尚未实现。
 
-- **技能**：列出全部文件技能（用户 / 自定义 / 内置根目录，以及内存注册的运行时技能），每个技能一个开关。启停通过 `SKILL.md` ⇄ `SKILL.md.disabled`（或 `<name>.md` ⇄ `<name>.md.disabled`）改名实现——与官方文件系统 provider 跳过技能的机制完全一致，目录监视器会自动刷新会话目录。
-- **MCP 服务器**：列出 profile 中全部 `@deepseek-ai/dsh-mcp-client` 行，每个服务器一个开关；底层走官方 `pluginManager` Remote（`setPluginEnabled`），支持 HMR 热生效与「需重启」状态回报。
-- **外部服务**：预留入口。
+## 工作区与生效范围
 
-### 输入框内的工作区精细控制
+项目根按 DSH 的规则查找祖先 `.git`，没有则使用 cwd。同一 Git 项目根的多个工作区共享项目技能文件与覆盖。
 
-会话输入框的权限/模式控件旁有一个精简设置图标，点击弹出面向当前工作区的控制面板：
+项目技能切换 `disable-model-invocation`、`user-invocable`。全局技能的项目级禁用写入同名、双禁用的项目占位技能；恢复只删除插件标记的占位文件，目录含其他文件时拒绝删除。全局禁用则改名 SKILL.md 或平铺 .md 为 .disabled。
 
-- **本项目技能**：对 `<工作区>/.dsh/skills` 与 `.agents/skills` 下的技能切换官方 frontmatter 键（`disable-model-invocation`、`user-invocable`），只写入本项目文件。
-- **全局技能在本工作区**：关闭开关会在 `<工作区>/.dsh/skills` 写入同名占位技能（project 层 rank 更高，且两个调用键均禁用），使该全局技能仅在本工作区对模型目录与用户命令不可见；恢复即删除占位——并通过文件体标记校验，只删除本插件创建的占位文件。
-- **MCP 服务器在本工作区**：通过 `tools/pre-execute` 门禁，当会话 cwd 属于被禁工作区时拒绝 `mcp__<server>__*` 工具调用（以及被工作区禁用技能的 `skill` 加载），并向模型返回本地化的拒绝原因。
+Host 文件监视器失效后会重新计算技能目录。旧会话的模型目录可在后续步骤更新，但已加载到对话中的正文不会被撤回。DSH 0.2.0-rc.2 的 `/` 候选有独立的 session 缓存，未监听技能文件变更，因此旧 `/` 列表仍显示技能不等于模型仍可加载它。页面刷新或新建会话可触发客户端重新获取；仍应检查实际目录/调用结果，而不是仅看开关或旧候选列表。
 
-### 样式
+官方工作区「重命名/删除」菜单没有插件 item 扩展槽。本插件不修改 DSH 内置菜单，使用独立「工作区设置」页签。
 
-面板完全复用官方「插件」页的几何与设计 token（页头、说明行 + 信息提示、28px 图标刷新按钮、字体排印、列表节奏），观感与官方一致。
-
-## 安装
-
-从源码：
+## 安装与开发
 
 ```bash
 git clone https://github.com/Gyanano/dsh-skill-manager.git
 cd dsh-skill-manager
-npm install
+npm ci
 npm run build
 dsh plugin --profile desktop add <本目录绝对路径>
 ```
 
-或使用 release tarball。手动安装：在 profile 目录内 `pnpm add "file:<绝对路径>"`，并把 `"dsh-skill-manager"` 追加进 profile `package.json` 的 `dsh.profile.bundles`。
-
-安装后重启 DSH——客户端 bundle 在页面启动时扫描装载。
-
-## 要求
-
-- DeepSeek Harness Desktop `0.2.0-rc.2` 或兼容的 `0.2.x` web 面。
-- 零运行时依赖：Host 半仅用 Node 内置模块与注入的 DSH 服务；浏览器 bundle 仅 require `react`、`react/jsx-runtime`、`react-dom` 与 `@deepseek-ai/dsh-client-ui-primitives`。
-
-## 工作原理
-
-- **Host 半**（`lib/index.js`）：以与官方 provider 相同的文件语义扫描五个技能根（project-dsh、project-agents、custom、user-dsh、user-agents、bundled），在 `/plugins/dsh-skill-manager/api/*` 提供 JSON 路由，把工作区覆盖持久化到 `<DSH_HOME>/storages/dsh-skill-manager/state.json`，并安装 `tools/pre-execute` 门禁。
-- **Client 半**（`lib/client.js`）：注册 `sidebar.panellist` 入口 + `main` 面板（与官方插件页相同的接缝），以及 `conversation.input.left` 输入框席位。
-
-设计依据与完整的扩展点调研见 [PLAN.md](PLAN.md)。
-
-## 安全说明
-
-- HTTP 路由校验同源、限制请求体大小，且只触及已扫描技能根内的文件。
-- 工作区占位仅在标记行存在时才会被删除；真实项目技能只通过 frontmatter 切换，绝不被改名。
-- 工作区级 MCP 禁用是调用期强制（工具仍在目录中，调用会被拒绝并给出原因）；全局 MCP 启停经官方管理器作用于整个 profile。
-
-## 开发
+安装或 Host 更新后完整重启 DSH；客户端 bundle 更新后刷新页面。源码仓库不包含构建产物，无已发布 release tarball。
 
 ```bash
-npm install
-npm run build   # esbuild → lib/index.js（Host）+ lib/client.js（浏览器 wrapper）
-npm test        # 单元自检 + 客户端 bundle 沙箱 + 弹层渲染测试
 npx tsc -p tsconfig.json
+npm run build
+npm test
 ```
+
+测试覆盖文件操作、客户端契约、真实 React 弹层/词典/导入选择，以及导入文件完整性、冲突、路径、junction、变更复检与限额。额外非安装烟测成功扫描 anthropics/skills 公共 GitHub 仓库，得到 20 个候选。运行中 DSH 的完整导入/目录生效端到端验证尚未完成。
+
+## 导入安全
+
+GitHub 使用无交互公共 HTTPS 浅克隆，关闭凭据助手、钩子和子模块；不安装依赖或执行来源脚本。扫描 token 五分钟有效，提交时复检来源，再以暂存目录和原子改名发布。默认限制扫描深度 20、文件/目录 10,000、读取 64 MiB，克隆超时 60 秒；读取限额不是网络下载限额。拒绝符号链接、junction、hardlink 与特殊文件。同名或无效技能不可选，冲突整批拒绝。
+
+技能内容可能指导模型执行高风险操作，导入前请审核可信来源。MCP 工作区禁用是调用期拒绝，不隐藏工具目录；全局 MCP 开关适用整个 profile。
+
+## 研究依据
+
+- [导入与 MCP](IMPORT-RESEARCH.md)：cc-switch 第一方源码、导入边界与 DSH MCP 配置。
+- [工作区与目录缓存](WORKSPACE-RESEARCH.md)：菜单限制、工作区 API、Host 与 `/` 列表更新机制。
+- [结构说明](PLAN.md)。
 
 ## 许可证
 

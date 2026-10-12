@@ -80,8 +80,29 @@ export async function toggleWorkspaceSkill(cwd: string, name: string, enable: bo
   await postJson(`${BASE}/skill/workspace`, { cwd, name, enable });
 }
 
-export async function createGlobalSkill(name: string, description: string, whenToUse: string | undefined): Promise<void> {
-  await postJson(`${BASE}/skill/create`, { name, description, whenToUse });
+export interface ImportScan {
+  token: string;
+  destination: string;
+  candidates: Array<{ id: string; name: string; description: string; relativePath: string; conflict: boolean; error?: string }>;
+}
+
+export async function scanSkills(source: string): Promise<ImportScan> {
+  return postResult<ImportScan>(`${BASE}/skill/import/scan`, { source });
+}
+
+export async function importSkills(token: string, selected: string[]): Promise<void> {
+  await postJson(`${BASE}/skill/import/commit`, { token, selected });
+}
+
+async function postResult<T>(path: string, payload: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const body = await response.json() as T & { ok?: boolean; error?: string };
+  if (!response.ok || body.ok !== true) throw new Error(body.error ?? `HTTP ${response.status}`);
+  return body;
 }
 
 export async function toggleWorkspaceMcp(

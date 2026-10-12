@@ -58,7 +58,7 @@ const plugin = registrations[0].factory(sandboxRequire);
 assert.equal(plugin.name, "dsh-skill-manager-client");
 assert.equal(
   JSON.stringify(plugin.inject),
-  JSON.stringify(["slots", "locale", "sessions", "remote", "remote.pluginManager"]),
+  JSON.stringify(["slots", "locale", "sessions", "workspaces", "remote", "remote.pluginManager"]),
 );
 assert.equal(typeof plugin.apply, "function");
 

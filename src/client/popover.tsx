@@ -111,7 +111,7 @@ export function WorkspaceControl(face: WorkspaceFace): ReactElement {
   );
 }
 
-function WorkspacePopover(face: WorkspaceFace): ReactElement {
+export function WorkspacePopover(face: WorkspaceFace): ReactElement {
   const { t, cwd } = face;
   const [data, setData] = useState<WorkspaceView | undefined>(undefined);
   const [servers, setServers] = useState<PluginRow[] | undefined>(undefined);
@@ -167,6 +167,7 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
     <div className="dsm-pop">
       <div className="dsm-pop-header">{t("workspaceTitle")}{data?.label !== undefined ? ` · ${data.label}` : ""}</div>
       {cwd !== undefined && <div className="dsm-pop-path">{cwd}</div>}
+      <div className="dsm-pop-note">{t("workspaceEffect")}</div>
       <input
         className="dsm-search"
         value={query}

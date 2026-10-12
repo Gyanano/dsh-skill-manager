@@ -2,72 +2,57 @@
 
 English | [中文](README.zh.md)
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin that adds a **Skills** hub to the DSH sidebar: enable/disable every global Skill and MCP server, and fine-tune both per workspace from the session composer.
-
-Built and tested against DSH Desktop `0.2.0-rc.2` (`@deepseek-ai/dsh 0.2.x`).
+Third-party skill manager for DeepSeek Harness Desktop 0.2.0-rc.2.
 
 ## Features
 
-### Sidebar Skills panel
+- Global file-skill switches; runtime registrations are read-only.
+- **Add skill** scans a public GitHub repository URL or an absolute local folder, previews SKILL.md candidates, and imports explicitly checked skills with their complete directories into `<DSH_HOME>/skills`. Existing skills are never overwritten; source scripts are never executed.
+- GitHub URLs support `https://github.com/owner/repo` and `/tree/branch` with an unambiguous single-segment ref. Private repositories, subtree URLs and slash-containing refs are unsupported. Git is required for GitHub imports.
+- **Workspace settings** tab selects a DSH workspace to manage project skill flags, global-skill project overrides and MCP call-time denial. The composer gear remains available as a shortcut.
+- Global MCP enablement uses the official Plugin Manager. MCP creation and external service connections are not implemented.
 
-- **Skills** — every file-based skill (user / custom / bundled roots, plus in-memory runtime registrations) with one switch per skill. Toggling renames `SKILL.md` ⇄ `SKILL.md.disabled` (or `<name>.md` ⇄ `<name>.md.disabled`), the exact mechanism the built-in filesystem provider uses to skip a skill; the directory watcher refreshes session catalogs automatically.
-- **MCP servers** — every `@deepseek-ai/dsh-mcp-client` entry in the profile with one switch per server, backed by the official `pluginManager` Remote (`setPluginEnabled`), including HMR live-apply / restart-required reporting.
-- **External services** — reserved placeholder.
+## Scope and catalog updates
 
-### Per-workspace controls in the composer
+Project roots follow DSH's ancestor `.git` lookup, falling back to cwd. Workspaces under the same Git root share project skill files and overrides.
 
-A compact settings icon next to the permission/plan controls in the session composer opens a popover scoped to the current workspace:
+Project toggles edit `disable-model-invocation` and `user-invocable`. Project overrides create same-named, dual-disabled placeholder skills. Restoration only removes marked placeholders and refuses directories containing additional files. Global toggles rename SKILL.md or flat .md files to/from .disabled.
 
-- **Project skills** — toggle frontmatter keys (`disable-model-invocation`, `user-invocable`) on skills under `<workspace>/.dsh/skills` and `.agents/skills`. Writes only touch project files.
-- **Global skills in this workspace** — dropping the switch writes a same-named placeholder skill into `<workspace>/.dsh/skills` (project rank outranks user roots; both invocation keys disabled), which hides the global skill from model catalogs and user commands in this workspace only. Restoring removes the placeholder — and only the placeholder, verified by a plugin-owned marker in the file body.
-- **MCP servers in this workspace** — a `tools/pre-execute` gate denies tool calls of `mcp__<server>__*` (and `skill` loads of workspace-disabled skills) while the session's cwd belongs to a disabled workspace, with a localized denial reason for the model.
+Host filesystem invalidation refreshes catalogs; existing model sessions can receive replacement catalogs on subsequent steps. Previously loaded conversation content is not withdrawn. DSH 0.2.0-rc.2 independently caches `/` candidates per session without subscribing to skill-file changes. A stale `/` entry is not evidence that the model can still load the skill. Refreshing the page or opening a new session triggers client refetching; verify the actual catalog/call result rather than just switch state.
 
-### Styling
+DSH's workspace rename/delete menu has no plugin item slot. This plugin uses a standalone workspace tab and does not patch built-in menus.
 
-The panel mirrors the official Plugins page geometry and tokens (page head, intro with info tooltip, 28px icon refresh button, typography, list rhythm) so it reads as a first-party surface.
-
-## Install
-
-From a checkout:
+## Install and develop
 
 ```bash
 git clone https://github.com/Gyanano/dsh-skill-manager.git
 cd dsh-skill-manager
-npm install
+npm ci
 npm run build
-dsh plugin --profile desktop add <absolute path to this folder>
+dsh plugin --profile desktop add <absolute checkout path>
 ```
 
-Or point the CLI at a release tarball. Manual installation: inside the profile directory run `pnpm add "file:<absolute path>"` and append `"dsh-skill-manager"` to `dsh.profile.bundles` in the profile's `package.json`.
-
-Restart DSH afterwards — client bundles are scanned when the page boots.
-
-## Requirements
-
-- DeepSeek Harness Desktop `0.2.0-rc.2` or a compatible `0.2.x` web surface.
-- No runtime package dependencies: the Host half uses only Node built-ins plus injected DSH services; the browser bundle requires only `react`, `react/jsx-runtime`, `react-dom`, and `@deepseek-ai/dsh-client-ui-primitives`.
-
-## How it works
-
-- **Host half** (`lib/index.js`): scans the five skill roots (project-dsh, project-agents, custom, user-dsh, user-agents, bundled) with the same file semantics as the official provider, serves JSON routes under `/plugins/dsh-skill-manager/api/*`, persists workspace overrides under `<DSH_HOME>/storages/dsh-skill-manager/state.json`, and installs the `tools/pre-execute` gate.
-- **Client half** (`lib/client.js`): registers the `sidebar.panellist` entry + `main` panel (the same seams the official Plugins page uses), and the `conversation.input.left` composer seat.
-
-Design notes and the full extension-point research live in [PLAN.md](PLAN.md).
-
-## Security notes
-
-- The HTTP routes validate same-origin, cap body size, and only touch files inside the scanned skill roots.
-- Workspace placeholders are only deleted when the marker line is present; real project skills are toggled through their frontmatter, never renamed.
-- Workspace MCP denial is call-time enforcement (the tools stay advertised; calls are refused with a reason). Global MCP enablement is profile-wide through the official manager.
-
-## Development
+Restart DSH after installation or Host updates; refresh the page after browser-bundle updates. Build artifacts are not committed and no release tarball is published.
 
 ```bash
-npm install
-npm run build   # esbuild → lib/index.js (host) + lib/client.js (browser wrapper)
-npm test        # unit selftest + client bundle sandbox + popover render harness
 npx tsc -p tsconfig.json
+npm run build
+npm test
 ```
+
+Tests cover file operations, bundle contracts, real React popover/localization/import selection, import preservation, conflicts, paths, junctions, source-change checks and limits. A separate non-installing smoke test successfully scanned the public anthropics/skills repository and found 20 candidates. Complete import/catalog-update behavior inside a running DSH instance is not yet verified end-to-end.
+
+## Import safety
+
+Public HTTPS shallow clones disable credential helpers, hooks and submodules, with no dependency installation or source execution. Scan tokens expire after five minutes; import revalidates source snapshots and publishes via staged directory renames. Defaults: depth 20, 10,000 files/directories, 64 MiB scanned bytes, 60-second clone timeout. The scan-byte limit is not a download limit. Symlinks, junctions, hardlinks and special files are rejected. Conflicting/invalid candidates cannot be selected; commit conflicts reject the entire batch.
+
+Review trusted skill sources: their instructions can direct consequential model actions. Workspace MCP restrictions deny calls without hiding advertised tools; global MCP switches affect the profile.
+
+## Research
+
+- [Import and MCP research](IMPORT-RESEARCH.md): first-party cc-switch sources and DSH MCP configuration.
+- [Workspace and cache research](WORKSPACE-RESEARCH.md): menu/API constraints and catalog caching.
+- [Architecture](PLAN.md).
 
 ## License
 

@@ -43,6 +43,7 @@ const CSS = `
 .dsm-input::placeholder { color: var(--dsw-alias-label-caption); }
 .dsm-fieldLabel { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
 .dsm-formActions { display: flex; justify-content: flex-end; gap: 8px; }
+.dsm-importCandidates { max-height: 40vh; overflow: auto; padding: 0 8px; }
 .dsm-pop-header { font-size: 14px; font-weight: 500; line-height: 22px; margin-bottom: 2px; }
 .dsm-pop-path { color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px; margin-bottom: 8px; word-break: break-all; }
 .dsm-pop .dsm-row { padding: 8px; gap: 10px; }

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, rmdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isManagedStubBody, parseSkillFile, workspaceStubDocument } from "./frontmatter";
 import { agentsHome, dshHome, isPathInside, projectRootOf } from "./paths";
@@ -157,30 +157,6 @@ function editInvocationKeys(text: string, appendLines: string[], removeKeys: str
   return ["---", ...kept, ...appendLines, "---", ...lines.slice(closing + 1)].join("\n");
 }
 
-export function createGlobalSkill(name: string, description: string, whenToUse: string | undefined): void {
-  const root = skillRoots(undefined, { customSkillDirs: [], bundledSkillDir: undefined }).find((candidate) => candidate.source === "user-dsh");
-  if (root === undefined) throw new Error("未找到用户技能根目录");
-  const dir = join(root.dir, name);
-  const skillMd = join(dir, "SKILL.md");
-  const skillMdDisabled = `${skillMd}.disabled`;
-  const flat = join(root.dir, `${name}.md`);
-  const flatDisabled = `${flat}.disabled`;
-  if (existsSync(skillMd) || existsSync(skillMdDisabled) || existsSync(flat) || existsSync(flatDisabled)) {
-    throw new Error("同名技能已存在");
-  }
-  const lines = ["---", `name: ${name}`, `description: ${yamlScalarOf(description)}`];
-  if (whenToUse !== undefined && whenToUse !== "") lines.push(`whenToUse: ${yamlScalarOf(whenToUse)}`);
-  lines.push("---", "", `# ${name}`, "", description, "");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(skillMd, lines.join("\n"));
-}
-
-function yamlScalarOf(value: string): string {
-  return /^[\w./ -]+$/.test(value) && value.trim() === value ? value : JSON.stringify(value);
-}
-
-export const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-
 export function workspaceStubDir(cwd: string, name: string): string {
   return join(projectRootOf(cwd), ".dsh", "skills", name);
 }
@@ -199,7 +175,11 @@ export function removeWorkspaceStub(cwd: string, name: string): void {
   if (!isManagedStubBody(parsed.body)) {
     throw new Error("同名项目技能不是本插件创建的占位，已拒绝删除");
   }
-  rmSync(dir, { recursive: true, force: true });
+  if (readdirSync(dir).some((name) => name !== "SKILL.md")) {
+    throw new Error("占位目录含其他文件，已拒绝删除；请手动检查");
+  }
+  rmSync(stubPath);
+  rmdirSync(dir);
 }
 
 export function workspaceDisabledNames(cwd: string | undefined, extra: ExtraRoots): Set<string> {

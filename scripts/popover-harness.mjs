@@ -4,8 +4,7 @@ import { JSDOM } from "jsdom";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import React from "react";
-import { createPortal } from "react-dom";
-import { createRoot } from "react-dom/client";
+import * as jsxRuntime from "react/jsx-runtime";
 import vm from "node:vm";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -16,6 +15,8 @@ globalThis.document = dom.window.document;
 globalThis.window = dom.window;
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
 globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+const { createRoot } = await import("react-dom/client");
+const { createPortal } = await import("react-dom");
 
 const workspaceResponse = {
   ok: true,
@@ -35,8 +36,11 @@ const workspaceResponse = {
 const fetchCalls = [];
 const fetchStub = (path, init) => {
   fetchCalls.push({ path, init });
-  const body = path.startsWith("/plugins/dsh-skill-manager/api/workspace")
-    ? workspaceResponse
+  const body = path.endsWith("/skill/import/scan")
+    ? { ok: true, token: "scan-test", destination: "C:/users/x/.dsh/skills", candidates: [{ id: "alpha", name: "alpha", description: "A skill", relativePath: "skills/alpha", conflict: false }, { id: "beta", name: "beta", description: "B skill", relativePath: "skills/beta", conflict: true }] }
+    : path.endsWith("/skill/import/commit") ? { ok: true }
+    : path.endsWith("/global") ? { ok: true, skills: workspaceResponse.global, mcpServers: workspaceResponse.mcpServers }
+    : path.startsWith("/plugins/dsh-skill-manager/api/workspace") ? workspaceResponse
     : { ok: true, error: "unexpected route" };
   return Promise.resolve({ ok: true, json: async () => body });
 };
@@ -51,6 +55,11 @@ moduleWindow.__ModuleLoader__ = {
 moduleWindow.fetch = fetchStub;
 
 const primitives = {
+  Button: ({ children, icon, ...props }) => React.createElement("button", { type: "button", ...props }, icon, children),
+  StateDot: () => null,
+  IconInfoOutlineRegular: () => null,
+  IconPlusOutlineRegular: () => null,
+  IconRefreshOutlineRegular: () => null,
   IconSkillOutlineRegular: () => null,
   IconSettingsOutlineRegular: (props) => React.createElement("span", { "data-icon": "settings", ...props }),
   Switch: (props) => React.createElement("button", { "data-switch": props.label ?? "", "data-checked": String(props.checked), "data-disabled": String(props.disabled === true), onClick: () => props.onChange(!props.checked) }),
@@ -60,19 +69,20 @@ const primitives = {
 const sandboxRequire = (spec) => {
   switch (spec) {
     case "react": return React;
-    case "react/jsx-runtime": return { jsx: (type, props, key) => ({ $$typeof: Symbol.for("react.element"), type, props, key, ref: null }) , jsxs: (type, props, key) => ({ $$typeof: Symbol.for("react.element"), type, props, key, ref: null }), Fragment: Symbol.for("react.fragment") };
+    case "react/jsx-runtime": return jsxRuntime;
     case "react-dom": return { createPortal };
     case "@deepseek-ai/dsh-client-ui-primitives": return primitives;
     default: throw new Error(`harness: unexpected require "${spec}"`);
   }
 };
 
-vm.runInNewContext(code, { window: moduleWindow, document: dom.window.document, require: sandboxRequire, console, fetch: fetchStub }, { filename: "client.js" });
+vm.runInNewContext(code, { window: moduleWindow, document: dom.window.document, require: sandboxRequire, console, fetch: fetchStub, Node: dom.window.Node }, { filename: "client.js" });
 
 assert.equal(registrations.length, 1);
 const plugin = registrations[0].factory(sandboxRequire);
 
 const registered = [];
+let dictionaries;
 const ctx = {
   effect(callback) {
     callback();
@@ -91,15 +101,20 @@ const ctx = {
     },
   },
   locale: {
-    register: () => () => {},
-    bind: () => (key, params) => {
-      if (params === undefined) return String(key);
-      return `${String(key)}:${JSON.stringify(params)}`;
+    register: (_namespace, values) => {
+      dictionaries = values;
+      for (const dictionary of Object.values(values)) for (const template of Object.values(dictionary)) assert.equal(typeof template, "string", "DSH locale templates must be strings");
+      return () => {};
+    },
+    bind: () => (key, params = {}) => {
+      const rendered = dictionaries.zh[key].replace(/\{(\w+)\}/g, (_match, name) => String(params[name] ?? ""));
+      return `${key}:${rendered}`;
     },
   },
   sessions: {
     list: { getSnapshot: () => ({ byId: { s1: { cwd: "C:/work/demo" } } }) },
   },
+  workspaces: { list: { getSnapshot: () => ({ items: [{ workspaceId: "workspace-demo", path: "C:/work/demo", title: "demo" }] }) } },
   remote: {
     $on: () => () => {},
     pluginManager: {
@@ -171,4 +186,36 @@ assert.ok(fetchCalls.some((call) => call.path.startsWith("/plugins/dsh-skill-man
 container.querySelector("span[data-icon='settings']")?.dispatchEvent(new dom.window.MouseEvent("click", { bubbles: true }));
 await until(() => pops().length === 0, "popover closes on second toggle");
 
-console.log("popover-harness: WorkspaceControl portal renders once, loads workspace data, resolves MCP names, toggles cleanly");
+const page = registered.find((item) => item.options.name === "main");
+const pageRoot = createRoot(dom.window.document.body.appendChild(dom.window.document.createElement("div")));
+pageRoot.render(React.createElement(page.component, page.options.inject()));
+const findButton = (key) => [...dom.window.document.querySelectorAll("button")].find((node) => node.textContent.startsWith(`${key}:`));
+await until(() => findButton("addSkill"), "add skill button");
+findButton("addSkill").click();
+await until(() => dom.window.document.querySelector("#dsm-import-source"), "import source input");
+const input = dom.window.document.querySelector("#dsm-import-source");
+Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value").set.call(input, "C:/public/skills");
+input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await until(() => findButton("scanSkills") && !findButton("scanSkills").disabled, "scan enabled");
+findButton("scanSkills").click();
+await until(() => dom.window.document.querySelectorAll("input[type=checkbox]").length === 2, "candidate preview");
+const checkboxes = [...dom.window.document.querySelectorAll("input[type=checkbox]")];
+assert.equal(checkboxes[1].disabled, true, "conflicts cannot be selected");
+assert.equal(findButton("importSelected").disabled, true, "explicit selection required");
+checkboxes[0].click();
+await until(() => !findButton("importSelected").disabled, "import enabled");
+findButton("importSelected").click();
+await until(() => fetchCalls.some((call) => call.path.endsWith("/skill/import/commit")), "import submitted");
+const commit = fetchCalls.find((call) => call.path.endsWith("/skill/import/commit"));
+assert.deepEqual(JSON.parse(commit.init.body), { token: "scan-test", selected: ["alpha"] });
+await until(() => !dom.window.document.querySelector("#dsm-import-source"), "import form closes after success");
+findButton("tabWorkspace").click();
+await until(() => dom.window.document.querySelector("select"), "workspace selector");
+const select = dom.window.document.querySelector("select");
+assert.equal(select.options[1].value, "C:/work/demo", "workspace path comes from official path field");
+select.value = "C:/work/demo";
+select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+await until(() => dom.window.document.querySelector(".dsm-pop"), "workspace settings independent of session");
+assert.ok(dom.window.document.querySelector(".dsm-pop").textContent.includes("workspaceEffect"));
+pageRoot.unmount();
+console.log("popover-harness: real React refs/locales, popover lifecycle, import scan/selection/conflict/commit verified");

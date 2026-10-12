@@ -2,10 +2,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { workspaceLabel, workspaceKey } from "./paths";
 import {
   assertPathInRoots,
-  createGlobalSkill,
   listSkillEntries,
   removeWorkspaceStub,
-  SKILL_NAME_PATTERN,
   toggleGlobalDisabled,
   toggleProjectSkill,
   workspaceDisabledNames,
@@ -14,6 +12,7 @@ import {
   type SkillEntry,
 } from "./skill-files";
 import { saveState, workspaceState, type ManagerState } from "./state";
+import { createSkillImporter } from "./skill-import";
 import type { HostContext, RegistrySkillSummary } from "./types";
 
 const BASE = "/plugins/dsh-skill-manager/api";
@@ -38,6 +37,7 @@ export interface RouteDeps {
 }
 
 export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
+  const importer = createSkillImporter();
   let disposeRoutes: () => void = () => {};
   ctx.inject(["webServer"], (scoped) => {
     const webServer = scoped.get("webServer") as HostWebServer | undefined;
@@ -115,19 +115,33 @@ export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
       }),
       webServer.register({
         kind: "exact",
-        path: `${BASE}/skill/create`,
+        path: `${BASE}/skill/import/scan`,
         handler: async (req, res) => {
-          if (!sameOrigin(req)) return;
+          if (!sameOrigin(req)) return reject(res, 403, "origin denied");
           const body = await readBody(req, res);
-          if (body === undefined) return;
-          const { name, description, whenToUse } = body as { name?: unknown; description?: unknown; whenToUse?: unknown };
-          if (typeof name !== "string" || !SKILL_NAME_PATTERN.test(name)) return reject(res, 400, "技能名必须是 kebab-case（小写字母、数字、连字符）");
-          if (typeof description !== "string" || description.trim() === "") return reject(res, 400, "描述不能为空");
-          if ((typeof whenToUse !== "string" && whenToUse !== undefined) || name.length > 64 || description.length > 512) return reject(res, 400, "参数无效");
+          if (!body) return;
+          if (typeof body.source !== "string" || body.source.length > 4096) return reject(res, 400, "无效来源");
           try {
-            createGlobalSkill(name, description.trim(), typeof whenToUse === "string" && whenToUse.trim() !== "" ? whenToUse.trim() : undefined);
+            const source = body.source.trim();
+            const scan = await importer.scan(source.startsWith("https://") ? { kind: "github", url: source } : { kind: "local", path: source });
+            json(res, 200, { ok: true, ...scan });
+          } catch (error) {
+            reject(res, 400, error instanceof Error ? error.message : String(error));
+          }
+        },
+      }),
+      webServer.register({
+        kind: "exact",
+        path: `${BASE}/skill/import/commit`,
+        handler: async (req, res) => {
+          if (!sameOrigin(req)) return reject(res, 403, "origin denied");
+          const body = await readBody(req, res);
+          if (!body) return;
+          if (typeof body.token !== "string" || !Array.isArray(body.selected) || !body.selected.every((id) => typeof id === "string")) return reject(res, 400, "无效选择");
+          try {
+            const result = importer.importSelected(body.token, body.selected);
             deps.onChanged();
-            json(res, 200, { ok: true });
+            json(res, 200, { ok: true, ...result });
           } catch (error) {
             reject(res, 400, error instanceof Error ? error.message : String(error));
           }
@@ -175,7 +189,7 @@ export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
       for (const dispose of disposers) dispose();
     };
   });
-  return () => disposeRoutes();
+  return () => { disposeRoutes(); importer.dispose(); };
 }
 
 async function globalViews(deps: RouteDeps): Promise<Record<string, unknown>[]> {

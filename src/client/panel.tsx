@@ -9,7 +9,6 @@ import {
 } from "@deepseek-ai/dsh-client-ui-primitives";
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
-  createGlobalSkill,
   fetchGlobalView,
   mcpServersOf,
   resolveServerName,
@@ -21,16 +20,20 @@ import {
 } from "./api";
 import { changeNotice, skillBadges, type RowLabels } from "./rows";
 import type { Dict } from "./locales";
+import { SkillImportForm } from "./import";
+import { WorkspacePopover } from "./popover";
 
 export interface PanelFace {
   t: (key: keyof Dict, params?: Record<string, string | number>) => string;
   pluginManager: PluginManagerRemote;
   onRemoteEvent: (event: string, listener: () => void) => () => void;
+  workspaces?: Array<{ workspaceId: string; path: string; title: string }>;
 }
 
 export function SkillsPanelPage(face: PanelFace): ReactElement {
   const { t } = face;
-  const [tab, setTab] = useState<"skills" | "mcp" | "external">("skills");
+  const [tab, setTab] = useState<"skills" | "mcp" | "workspace" | "external">("skills");
+  const [workspacePath, setWorkspacePath] = useState("");
   const [skills, setSkills] = useState<SkillView[] | undefined>(undefined);
   const [scanned, setScanned] = useState<McpServerInfo[] | undefined>(undefined);
   const [servers, setServers] = useState<PluginRow[] | undefined>(undefined);
@@ -39,12 +42,6 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
   const [busy, setBusy] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formWhen, setFormWhen] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [formError, setFormError] = useState<string | undefined>(undefined);
-
   const reload = useCallback(async () => {
     const failures: string[] = [];
     setRefreshing(true);
@@ -110,31 +107,6 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
     }
   };
 
-  const submitCreate = async (): Promise<void> => {
-    if (creating) return;
-    const name = formName.trim();
-    const description = formDescription.trim();
-    const whenToUse = formWhen.trim();
-    if (name === "" || description === "") {
-      setFormError(t("createFailed"));
-      return;
-    }
-    setCreating(true);
-    setFormError(undefined);
-    try {
-      await createGlobalSkill(name, description, whenToUse === "" ? undefined : whenToUse);
-      setShowForm(false);
-      setFormName("");
-      setFormDescription("");
-      setFormWhen("");
-      await reload();
-    } catch (error) {
-      setFormError(`${t("createFailed")}: ${textOf(error)}`);
-    } finally {
-      setCreating(false);
-    }
-  };
-
   return (
     <div className="dsm-root">
       <div className="dsm-pageHead" data-window-drag="true">
@@ -172,6 +144,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
             className="dsm-addButton"
             icon={<IconPlusOutlineRegular size={13} />}
             onClick={() => {
+              setTab("skills");
               setShowForm((value) => !value);
             }}
           >
@@ -180,7 +153,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
         </div>
       </div>
       <div className="dsm-tabs" role="tablist">
-        {(["skills", "mcp", "external"] as const).map((key) => (
+        {(["skills", "mcp", "workspace", "external"] as const).map((key) => (
           <button
             key={key}
             type="button"
@@ -191,65 +164,22 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
               setTab(key);
             }}
           >
-            {key === "skills" ? t("tabSkills") : key === "mcp" ? t("tabMcp") : t("tabExternal")}
+            {key === "skills" ? t("tabSkills") : key === "mcp" ? t("tabMcp") : key === "workspace" ? t("tabWorkspace") : t("tabExternal")}
           </button>
         ))}
       </div>
       {error !== undefined && <div className="dsm-error">{error}</div>}
       {notice !== undefined && <div className="dsm-muted">{notice}</div>}
+      {tab === "workspace" && <div>
+        <select className="dsm-input" aria-label={t("selectWorkspace")} value={workspacePath} onChange={(event) => setWorkspacePath(event.target.value)}>
+          <option value="">{t("selectWorkspace")}</option>
+          {(face.workspaces ?? []).map((workspace) => <option key={workspace.workspaceId} value={workspace.path}>{workspace.title || workspace.path}</option>)}
+        </select>
+        {workspacePath && <WorkspacePopover key={workspacePath} t={t} cwd={workspacePath} pluginManager={face.pluginManager} />}
+      </div>}
       {tab === "skills" && (
         <>
-          {showForm && (
-            <form
-              className="dsm-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submitCreate();
-              }}
-            >
-              <div className="dsm-section">{t("createTitle")}</div>
-              <label className="dsm-fieldLabel">{t("formName")}</label>
-              <input
-                className="dsm-input"
-                value={formName}
-                placeholder={t("formNamePlaceholder")}
-                disabled={creating}
-                onChange={(event) => setFormName(event.target.value)}
-              />
-              <label className="dsm-fieldLabel">{t("formDescription")}</label>
-              <input
-                className="dsm-input"
-                value={formDescription}
-                placeholder={t("formDescriptionPlaceholder")}
-                disabled={creating}
-                onChange={(event) => setFormDescription(event.target.value)}
-              />
-              <label className="dsm-fieldLabel">{t("formWhen")}</label>
-              <input
-                className="dsm-input"
-                value={formWhen}
-                placeholder={t("formWhenPlaceholder")}
-                disabled={creating}
-                onChange={(event) => setFormWhen(event.target.value)}
-              />
-              {formError !== undefined && <div className="dsm-error">{formError}</div>}
-              <div className="dsm-formActions">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={creating}
-                  onClick={() => {
-                    setShowForm(false);
-                  }}
-                >
-                  {t("cancel")}
-                </Button>
-                <Button variant="primary" size="sm" disabled={creating} onClick={() => void submitCreate()}>
-                  {t("create")}
-                </Button>
-              </div>
-            </form>
-          )}
+          {showForm && <SkillImportForm t={t} onClose={() => setShowForm(false)} onImported={reload} />}
           <div className="dsm-list">
           {skills === undefined && <div className="dsm-muted">{t("loading")}</div>}
           {skills !== undefined && skills.length === 0 && <div className="dsm-muted">{t("empty")}</div>}

@@ -35,6 +35,7 @@ interface ClientContext {
     register(namespace: string, dictionaries: { zh: Dict; en: Dict }): () => void;
     bind(namespace: string): (key: keyof Dict, params?: Record<string, string | number>) => string;
   };
+  workspaces?: { list: { getSnapshot(): { items: Array<{ workspaceId: string; path: string; title: string }> } } };
   sessions?: {
     list: {
       getSnapshot(): {
@@ -50,7 +51,7 @@ interface ClientContext {
 
 export const name = "dsh-skill-manager-client";
 
-export const inject = ["slots", "locale", "sessions", "remote", "remote.pluginManager"];
+export const inject = ["slots", "locale", "sessions", "workspaces", "remote", "remote.pluginManager"];
 
 function remoteErrorText(error: RemoteFailureLike | undefined): string {
   if (error === undefined) return "remote 调用失败";
@@ -90,6 +91,7 @@ export function apply(ctx: ClientContext): void {
       t,
       pluginManager: pluginManager(),
       onRemoteEvent,
+      workspaces: ctx.workspaces?.list.getSnapshot().items ?? [],
     }),
   }, SkillsPanelPage));
   ctx.slots.inject("sidebar.panellist", () => ctx.slots.register({

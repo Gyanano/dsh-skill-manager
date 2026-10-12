@@ -35,6 +35,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-layout",
         "@deepseek-ai/dsh-client-ui-sidebar",
@@ -48,10 +49,9 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node scripts/selftest.mjs && node scripts/client-harness.mjs && node scripts/popover-harness.mjs"
+    "test": "node scripts/selftest.mjs && node scripts/client-harness.mjs && node scripts/popover-harness.mjs && node scripts/import-selftest.mjs"
   },
   "keywords": [],
-  "author": "",
   "devDependencies": {
     "@types/node": "^22.20.5",
     "@types/react": "^18.3.31",
