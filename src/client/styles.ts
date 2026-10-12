@@ -44,6 +44,10 @@ const CSS = `
 .dsm-fieldLabel { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
 .dsm-formActions { display: flex; justify-content: flex-end; gap: 8px; }
 .dsm-importCandidates { max-height: 40vh; overflow: auto; padding: 0 8px; }
+.dsm-modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 90; }
+.dsm-modal { box-sizing: border-box; width: min(520px, 86vw); max-height: min(560px, 80vh); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-lg, 12px); box-shadow: var(--dsw-elevation-prominent); padding: 16px; color: var(--dsw-alias-label-primary); font-size: 13px; text-align: left; }
+.dsm-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dsm-modal-title { font-size: 16px; font-weight: 500; line-height: 24px; }
 .dsm-pop-header { font-size: 14px; font-weight: 500; line-height: 22px; margin-bottom: 2px; }
 .dsm-pop-path { color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px; margin-bottom: 8px; word-break: break-all; }
 .dsm-pop .dsm-row { padding: 8px; gap: 10px; }

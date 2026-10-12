@@ -38,7 +38,7 @@ const fetchStub = (path, init) => {
   fetchCalls.push({ path, init });
   const body = path.endsWith("/skill/import/scan")
     ? { ok: true, token: "scan-test", destination: "C:/users/x/.dsh/skills", candidates: [{ id: "alpha", name: "alpha", description: "A skill", relativePath: "skills/alpha", conflict: false }, { id: "beta", name: "beta", description: "B skill", relativePath: "skills/beta", conflict: true }] }
-    : path.endsWith("/skill/import/commit") ? { ok: true }
+    : path.endsWith("/skill/import/commit") ? { ok: true, imported: [{ id: "alpha", name: "alpha", path: "C:/users/x/.dsh/skills/alpha" }] }
     : path.endsWith("/global") ? { ok: true, skills: workspaceResponse.global, mcpServers: workspaceResponse.mcpServers }
     : path.startsWith("/plugins/dsh-skill-manager/api/workspace") ? workspaceResponse
     : { ok: true, error: "unexpected route" };
@@ -114,7 +114,6 @@ const ctx = {
   sessions: {
     list: { getSnapshot: () => ({ byId: { s1: { cwd: "C:/work/demo" } } }) },
   },
-  workspaces: { list: { getSnapshot: () => ({ items: [{ workspaceId: "workspace-demo", path: "C:/work/demo", title: "demo" }] }) } },
   remote: {
     $on: () => () => {},
     pluginManager: {
@@ -191,31 +190,29 @@ const pageRoot = createRoot(dom.window.document.body.appendChild(dom.window.docu
 pageRoot.render(React.createElement(page.component, page.options.inject()));
 const findButton = (key) => [...dom.window.document.querySelectorAll("button")].find((node) => node.textContent.startsWith(`${key}:`));
 await until(() => findButton("addSkill"), "add skill button");
+assert.ok(![...dom.window.document.querySelectorAll(".dsm-tab")].some((node) => node.textContent.startsWith("tabWorkspace")), "workspace settings tab removed");
 findButton("addSkill").click();
+await until(() => dom.window.document.querySelector(".dsm-modal-backdrop"), "import dialog opens");
 await until(() => dom.window.document.querySelector("#dsm-import-source"), "import source input");
 const input = dom.window.document.querySelector("#dsm-import-source");
 Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value").set.call(input, "C:/public/skills");
 input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
-await until(() => findButton("scanSkills") && !findButton("scanSkills").disabled, "scan enabled");
+await until(() => findButton("scanSkills") && !findButton("scanSkills").disabled, "parse enabled");
 findButton("scanSkills").click();
-await until(() => dom.window.document.querySelectorAll("input[type=checkbox]").length === 2, "candidate preview");
-const checkboxes = [...dom.window.document.querySelectorAll("input[type=checkbox]")];
+await until(() => dom.window.document.querySelectorAll(".dsm-importCandidates input[type=checkbox]").length === 2, "candidate preview");
+const checkboxes = [...dom.window.document.querySelectorAll(".dsm-importCandidates input[type=checkbox]")];
 assert.equal(checkboxes[1].disabled, true, "conflicts cannot be selected");
 assert.equal(findButton("importSelected").disabled, true, "explicit selection required");
 checkboxes[0].click();
-await until(() => !findButton("importSelected").disabled, "import enabled");
+await until(() => !findButton("importSelected").disabled, "confirm enabled");
 findButton("importSelected").click();
 await until(() => fetchCalls.some((call) => call.path.endsWith("/skill/import/commit")), "import submitted");
 const commit = fetchCalls.find((call) => call.path.endsWith("/skill/import/commit"));
 assert.deepEqual(JSON.parse(commit.init.body), { token: "scan-test", selected: ["alpha"] });
-await until(() => !dom.window.document.querySelector("#dsm-import-source"), "import form closes after success");
-findButton("tabWorkspace").click();
-await until(() => dom.window.document.querySelector("select"), "workspace selector");
-const select = dom.window.document.querySelector("select");
-assert.equal(select.options[1].value, "C:/work/demo", "workspace path comes from official path field");
-select.value = "C:/work/demo";
-select.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-await until(() => dom.window.document.querySelector(".dsm-pop"), "workspace settings independent of session");
-assert.ok(dom.window.document.querySelector(".dsm-pop").textContent.includes("workspaceEffect"));
+await until(() => dom.window.document.body.textContent.includes("importDone"), "done summary shows added skills");
+const doneButton = [...dom.window.document.querySelectorAll(".dsm-modal button")].find((node) => node.textContent.startsWith("importClose"));
+assert.ok(doneButton !== undefined);
+doneButton.click();
+await until(() => dom.window.document.querySelector(".dsm-modal-backdrop") === null, "dialog closes after completion");
 pageRoot.unmount();
-console.log("popover-harness: real React refs/locales, popover lifecycle, import scan/selection/conflict/commit verified");
+console.log("popover-harness: real React refs/locales, popover lifecycle, import dialog scan/selection/conflict/commit verified");

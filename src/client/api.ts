@@ -90,8 +90,8 @@ export async function scanSkills(source: string): Promise<ImportScan> {
   return postResult<ImportScan>(`${BASE}/skill/import/scan`, { source });
 }
 
-export async function importSkills(token: string, selected: string[]): Promise<void> {
-  await postJson(`${BASE}/skill/import/commit`, { token, selected });
+export async function importSkills(token: string, selected: string[]): Promise<{ imported: Array<{ id: string; name: string; path: string }> }> {
+  return postResult<{ imported: Array<{ id: string; name: string; path: string }> }>(`${BASE}/skill/import/commit`, { token, selected });
 }
 
 async function postResult<T>(path: string, payload: unknown): Promise<T> {

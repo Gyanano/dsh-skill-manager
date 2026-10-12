@@ -20,20 +20,17 @@ import {
 } from "./api";
 import { changeNotice, skillBadges, type RowLabels } from "./rows";
 import type { Dict } from "./locales";
-import { SkillImportForm } from "./import";
-import { WorkspacePopover } from "./popover";
+import { SkillImportDialog } from "./import";
 
 export interface PanelFace {
   t: (key: keyof Dict, params?: Record<string, string | number>) => string;
   pluginManager: PluginManagerRemote;
   onRemoteEvent: (event: string, listener: () => void) => () => void;
-  workspaces?: Array<{ workspaceId: string; path: string; title: string }>;
 }
 
 export function SkillsPanelPage(face: PanelFace): ReactElement {
   const { t } = face;
-  const [tab, setTab] = useState<"skills" | "mcp" | "workspace" | "external">("skills");
-  const [workspacePath, setWorkspacePath] = useState("");
+  const [tab, setTab] = useState<"skills" | "mcp" | "external">("skills");
   const [skills, setSkills] = useState<SkillView[] | undefined>(undefined);
   const [scanned, setScanned] = useState<McpServerInfo[] | undefined>(undefined);
   const [servers, setServers] = useState<PluginRow[] | undefined>(undefined);
@@ -144,8 +141,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
             className="dsm-addButton"
             icon={<IconPlusOutlineRegular size={13} />}
             onClick={() => {
-              setTab("skills");
-              setShowForm((value) => !value);
+              setShowForm(true);
             }}
           >
             {t("addSkill")}
@@ -153,7 +149,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
         </div>
       </div>
       <div className="dsm-tabs" role="tablist">
-        {(["skills", "mcp", "workspace", "external"] as const).map((key) => (
+        {(["skills", "mcp", "external"] as const).map((key) => (
           <button
             key={key}
             type="button"
@@ -164,22 +160,15 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
               setTab(key);
             }}
           >
-            {key === "skills" ? t("tabSkills") : key === "mcp" ? t("tabMcp") : key === "workspace" ? t("tabWorkspace") : t("tabExternal")}
+            {key === "skills" ? t("tabSkills") : key === "mcp" ? t("tabMcp") : t("tabExternal")}
           </button>
         ))}
       </div>
       {error !== undefined && <div className="dsm-error">{error}</div>}
       {notice !== undefined && <div className="dsm-muted">{notice}</div>}
-      {tab === "workspace" && <div>
-        <select className="dsm-input" aria-label={t("selectWorkspace")} value={workspacePath} onChange={(event) => setWorkspacePath(event.target.value)}>
-          <option value="">{t("selectWorkspace")}</option>
-          {(face.workspaces ?? []).map((workspace) => <option key={workspace.workspaceId} value={workspace.path}>{workspace.title || workspace.path}</option>)}
-        </select>
-        {workspacePath && <WorkspacePopover key={workspacePath} t={t} cwd={workspacePath} pluginManager={face.pluginManager} />}
-      </div>}
+      {showForm && <SkillImportDialog t={t} onClose={() => setShowForm(false)} onImported={reload} />}
       {tab === "skills" && (
         <>
-          {showForm && <SkillImportForm t={t} onClose={() => setShowForm(false)} onImported={reload} />}
           <div className="dsm-list">
           {skills === undefined && <div className="dsm-muted">{t("loading")}</div>}
           {skills !== undefined && skills.length === 0 && <div className="dsm-muted">{t("empty")}</div>}

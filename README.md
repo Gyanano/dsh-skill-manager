@@ -7,9 +7,9 @@ Third-party skill manager for DeepSeek Harness Desktop 0.2.0-rc.2.
 ## Features
 
 - Global file-skill switches; runtime registrations are read-only.
-- **Add skill** scans a public GitHub repository URL or an absolute local folder, previews SKILL.md candidates, and imports explicitly checked skills with their complete directories into `<DSH_HOME>/skills`. Existing skills are never overwritten; source scripts are never executed.
+- **Add skill** opens a dialog: enter a public GitHub repository URL or an absolute local folder, parse to preview SKILL.md candidates, check the skills to add, confirm, and close the dialog when done. Skills import with their complete directories into `<DSH_HOME>/skills`. Existing skills are never overwritten; source scripts are never executed.
 - GitHub URLs support `https://github.com/owner/repo` and `/tree/branch` with an unambiguous single-segment ref. Private repositories, subtree URLs and slash-containing refs are unsupported. Git is required for GitHub imports.
-- **Workspace settings** tab selects a DSH workspace to manage project skill flags, global-skill project overrides and MCP call-time denial. The composer gear remains available as a shortcut.
+- The composer gear opens per-workspace project skill flags, global-skill overrides and MCP call-time denial for the current workspace.
 - Global MCP enablement uses the official Plugin Manager. MCP creation and external service connections are not implemented.
 
 ## Scope and catalog updates

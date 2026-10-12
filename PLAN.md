@@ -5,10 +5,10 @@
 ## Client
 
 - `sidebar.panellist` + `main` keyed slot：侧边栏「技能」及管理页面。
-- 页面含技能、MCP、工作区设置、外部服务四个页签。
-- 工作区列表来自 `ctx.workspaces.list.getSnapshot().items`，使用 `path` 定位配置范围。
-- `conversation.input.left`：保留工作区面板快捷入口。
-- `react-dom` Portal：弹层挂载到 body，实色背景、搜索筛选、高度限制、内部错误边界。
+- 页面含技能、MCP、外部服务三个页签；「添加技能」为独立弹窗（来源输入 → 解析候选 → 复选确认 → 完成关闭）。
+- 会话 cwd 来自 `ctx.sessions.list.getSnapshot().byId[id].cwd`。
+- `conversation.input.left`：工作区面板快捷入口。
+- `react-dom` Portal：弹层挂载到 body，实色背景、搜索筛选、高度限制、内部错误边界；添加技能弹窗同样 Portal 到 body。
 - DSH locale 词条全部为字符串模板，参数使用 `{name}` 插值。
 - 添加技能为来源扫描、候选复选、导入三步，不提供空模板创建。
 
@@ -23,7 +23,7 @@
 
 ## 真实限制
 
-- 工作区 rename/delete 菜单没有可扩展 item slot；独立工作区页签是本插件入口，未向菜单注入。
+- 工作区 rename/delete 菜单没有可扩展 item slot；工作区配置入口为输入框齿轮弹层，未向内置菜单注入。
 - Host 文件 provider 的 watcher 决定目录失效。没有公共 `ctx.skills.invalidate()`，不伪造工具事件或调用私有失效方法。
 - DSH slash 候选按 session 缓存且不监听技能变更；旧候选不是实际可加载能力的证明。页面刷新/新会话触发重新获取，但 Host watcher 完成仍需验证。
 - GitHub 只支持公共仓库与明确单段分支；git clone 有超时但无网络字节上限，扫描有文件数/字节/深度限额。
