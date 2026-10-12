@@ -128,9 +128,9 @@ export function serverNameOf(entryId: string): string {
 }
 
 export function resolveServerName(entryId: string, scanned: McpServerInfo[] | undefined): string {
-  if (scanned !== undefined) {
+  if (Array.isArray(scanned)) {
     const match = scanned.find((server) => entryId === server.id || entryId.endsWith(`:${server.id}`) || server.id.endsWith(entryId));
-    if (match !== undefined) return match.serverName;
+    if (match !== undefined && typeof match.serverName === "string" && match.serverName !== "") return match.serverName;
   }
   return serverNameOf(entryId);
 }

@@ -1,5 +1,5 @@
 import { IconSettingsOutlineRegular, Switch, Tooltip } from "@deepseek-ai/dsh-client-ui-primitives";
-import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
+import { Component, useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   fetchWorkspaceView,
@@ -9,6 +9,7 @@ import {
   toggleWorkspaceSkill,
   type PluginManagerRemote,
   type PluginRow,
+  type SkillView,
   type WorkspaceView,
 } from "./api";
 import type { Dict } from "./locales";
@@ -100,7 +101,9 @@ export function WorkspaceControl(face: WorkspaceFace): ReactElement {
             zIndex: 80,
           }}
         >
-          <WorkspacePopover t={t} cwd={cwd} pluginManager={face.pluginManager} />
+          <PopoverBoundary>
+            <WorkspacePopover t={t} cwd={cwd} pluginManager={face.pluginManager} />
+          </PopoverBoundary>
         </div>,
         document.body,
       )}
@@ -150,8 +153,8 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
     }
   };
 
-  const projectRows = data?.project ?? [];
-  const globalRows = data?.global ?? [];
+  const projectRows = projectRowsOf(data);
+  const globalRows = globalRowsOf(data);
   const denials = data === undefined ? {} : mcpDenialsOf(data);
 
   return (
@@ -166,21 +169,23 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
           <div className="dsm-section">{t("workspaceProject")}</div>
           {projectRows.length === 0 && <div className="dsm-muted">{t("workspaceProjectEmpty")}</div>}
           {projectRows.map((skill) => {
-            const checked = skill.invocation.modelInvocable || skill.invocation.userInvocable;
+            const invocation = skill.invocation ?? { modelInvocable: true, userInvocable: true };
+            const checked = invocation.modelInvocable || invocation.userInvocable;
             const key = `project:${skill.name}`;
+            const description = skill.description ?? "";
             return (
               <div className="dsm-row" key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{skill.name}</span>
-                    {!skill.invocation.modelInvocable && skill.invocation.userInvocable && (
+                    {!invocation.modelInvocable && invocation.userInvocable && (
                       <span className="dsm-badge">/</span>
                     )}
                     {skill.parseError !== undefined && (
                       <span className="dsm-badge" data-tone="warn">{t("skillInvalid")}</span>
                     )}
                   </div>
-                  {skill.description !== "" && <div className="dsm-row-desc" title={skill.description}>{skill.description}</div>}
+                  {description !== "" && <div className="dsm-row-desc" title={description}>{description}</div>}
                 </div>
                 <Switch
                   checked={checked}
@@ -201,6 +206,7 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
             const workspaceAllowed = skill.workspaceDisabled !== true;
             const key = `global:${skill.name}`;
             const locked = busy === key || skill.disabled || skill.readOnly || skill.path === undefined;
+            const description = skill.description ?? "";
             return (
               <div className="dsm-row" key={key}>
                 <div className="dsm-row-main">
@@ -210,7 +216,7 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
                       <span key={badge.text} className="dsm-badge" data-tone={badge.tone}>{badge.text}</span>
                     ))}
                   </div>
-                  {skill.description !== "" && <div className="dsm-row-desc" title={skill.description}>{skill.description}</div>}
+                  {description !== "" && <div className="dsm-row-desc" title={description}>{description}</div>}
                 </div>
                 <Switch
                   checked={workspaceAllowed}
@@ -274,8 +280,35 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
   );
 }
 
+class PopoverBoundary extends Component<{ children: ReactNode }, { message: string | undefined }> {
+  state: { message: string | undefined } = { message: undefined };
+  static getDerivedStateFromError(error: unknown): { message: string } {
+    return { message: textOf(error) };
+  }
+  componentDidCatch(error: unknown): void {
+    console.error("dsh-skill-manager: workspace popover crashed", error);
+  }
+  render(): ReactNode {
+    if (this.state.message !== undefined) {
+      return <div className="dsm-error">dsh-skill-manager: {this.state.message}</div>;
+    }
+    return this.props.children;
+  }
+}
+
 function mcpDenialsOf(data: WorkspaceView): Record<string, { entryId: string; title?: string }> {
-  return data.mcpDenials ?? {};
+  const raw = data.mcpDenials;
+  return raw !== null && typeof raw === "object" ? raw : {};
+}
+
+function projectRowsOf(data: WorkspaceView | undefined): SkillView[] {
+  const rows = data?.project;
+  return Array.isArray(rows) ? rows : [];
+}
+
+function globalRowsOf(data: WorkspaceView | undefined): SkillView[] {
+  const rows = data?.global;
+  return Array.isArray(rows) ? rows : [];
 }
 
 function textOf(error: unknown): string {

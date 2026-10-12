@@ -32,7 +32,7 @@ function jsxStub() {
 }
 
 const modules = {
-  react: {},
+  react: { Component: class {} },
   "react/jsx-runtime": { jsx: jsxStub, jsxs: jsxStub, Fragment: "Fragment" },
   "react-dom": { createPortal: jsxStub },
   "@deepseek-ai/dsh-client-ui-primitives": {
