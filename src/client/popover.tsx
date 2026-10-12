@@ -95,7 +95,7 @@ export function WorkspaceControl(face: WorkspaceFace): ReactElement {
             left: anchor?.left ?? 8,
             bottom: anchor?.bottom ?? 10,
             width: "min(420px, 72vw)",
-            maxHeight: "min(460px, 60vh)",
+            maxHeight: "min(400px, 55vh)",
             overflowY: "auto",
             overscrollBehavior: "contain",
             zIndex: 80,
@@ -117,6 +117,7 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
   const [servers, setServers] = useState<PluginRow[] | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState<string | undefined>(undefined);
+  const [query, setQuery] = useState("");
 
   const reload = useCallback(async () => {
     if (cwd === undefined || cwd === "") return;
@@ -153,14 +154,25 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
     }
   };
 
-  const projectRows = projectRowsOf(data);
-  const globalRows = globalRowsOf(data);
+  const projectRows = filterSkills(projectRowsOf(data), query);
+  const globalRows = filterSkills(globalRowsOf(data), query);
+  const serverRows = (servers ?? []).filter((row) => {
+    if (query === "") return true;
+    const needle = query.toLowerCase();
+    return `${row.entryId ?? ""}`.toLowerCase().includes(needle);
+  });
   const denials = data === undefined ? {} : mcpDenialsOf(data);
 
   return (
     <div className="dsm-pop">
       <div className="dsm-pop-header">{t("workspaceTitle")}{data?.label !== undefined ? ` · ${data.label}` : ""}</div>
       {cwd !== undefined && <div className="dsm-pop-path">{cwd}</div>}
+      <input
+        className="dsm-search"
+        value={query}
+        placeholder={t("searchPlaceholder")}
+        onChange={(event) => setQuery(event.target.value)}
+      />
       {cwd === undefined || cwd === "" ? (
         <div className="dsm-muted">{t("workspaceNone")}</div>
       ) : (
@@ -233,8 +245,9 @@ function WorkspacePopover(face: WorkspaceFace): ReactElement {
           })}
           <div className="dsm-section">{t("workspaceMcp")}</div>
           <div className="dsm-pop-note">{t("workspaceMcpHint")}</div>
+          {serverRows.length === 0 && servers !== undefined && servers.length > 0 && <div className="dsm-muted">{t("empty")}</div>}
           {servers !== undefined && servers.length === 0 && <div className="dsm-muted">{t("mcpEmpty")}</div>}
-          {servers?.map((row) => {
+          {serverRows.map((row) => {
             const entryId = row.entryId ?? "";
             const serverName = resolveServerName(entryId, data?.mcpServers);
             const denied = denials[serverName] !== undefined;
@@ -294,6 +307,13 @@ class PopoverBoundary extends Component<{ children: ReactNode }, { message: stri
     }
     return this.props.children;
   }
+}
+
+function filterSkills(rows: SkillView[], query: string): SkillView[] {
+  if (query === "") return rows;
+  const needle = query.toLowerCase();
+  return rows.filter((skill) =>
+    skill.name.toLowerCase().includes(needle) || (skill.description ?? "").toLowerCase().includes(needle));
 }
 
 function mcpDenialsOf(data: WorkspaceView): Record<string, { entryId: string; title?: string }> {

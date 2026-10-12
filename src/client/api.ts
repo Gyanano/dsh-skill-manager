@@ -80,6 +80,10 @@ export async function toggleWorkspaceSkill(cwd: string, name: string, enable: bo
   await postJson(`${BASE}/skill/workspace`, { cwd, name, enable });
 }
 
+export async function createGlobalSkill(name: string, description: string, whenToUse: string | undefined): Promise<void> {
+  await postJson(`${BASE}/skill/create`, { name, description, whenToUse });
+}
+
 export async function toggleWorkspaceMcp(
   cwd: string,
   serverName: string,

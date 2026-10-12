@@ -1,6 +1,7 @@
 import {
   Button,
   IconInfoOutlineRegular,
+  IconPlusOutlineRegular,
   IconRefreshOutlineRegular,
   StateDot,
   Switch,
@@ -8,6 +9,7 @@ import {
 } from "@deepseek-ai/dsh-client-ui-primitives";
 import { useCallback, useEffect, useState, type ReactElement } from "react";
 import {
+  createGlobalSkill,
   fetchGlobalView,
   mcpServersOf,
   resolveServerName,
@@ -36,6 +38,12 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
   const [notice, setNotice] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState<string | undefined>(undefined);
   const [refreshing, setRefreshing] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formWhen, setFormWhen] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [formError, setFormError] = useState<string | undefined>(undefined);
 
   const reload = useCallback(async () => {
     const failures: string[] = [];
@@ -102,6 +110,31 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
     }
   };
 
+  const submitCreate = async (): Promise<void> => {
+    if (creating) return;
+    const name = formName.trim();
+    const description = formDescription.trim();
+    const whenToUse = formWhen.trim();
+    if (name === "" || description === "") {
+      setFormError(t("createFailed"));
+      return;
+    }
+    setCreating(true);
+    setFormError(undefined);
+    try {
+      await createGlobalSkill(name, description, whenToUse === "" ? undefined : whenToUse);
+      setShowForm(false);
+      setFormName("");
+      setFormDescription("");
+      setFormWhen("");
+      await reload();
+    } catch (error) {
+      setFormError(`${t("createFailed")}: ${textOf(error)}`);
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <div className="dsm-root">
       <div className="dsm-pageHead" data-window-drag="true">
@@ -133,6 +166,17 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
               </span>
             </button>
           </Tooltip>
+          <Button
+            variant="primary"
+            size="sm"
+            className="dsm-addButton"
+            icon={<IconPlusOutlineRegular size={13} />}
+            onClick={() => {
+              setShowForm((value) => !value);
+            }}
+          >
+            {t("addSkill")}
+          </Button>
         </div>
       </div>
       <div className="dsm-tabs" role="tablist">
@@ -154,7 +198,59 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
       {error !== undefined && <div className="dsm-error">{error}</div>}
       {notice !== undefined && <div className="dsm-muted">{notice}</div>}
       {tab === "skills" && (
-        <div className="dsm-list">
+        <>
+          {showForm && (
+            <form
+              className="dsm-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submitCreate();
+              }}
+            >
+              <div className="dsm-section">{t("createTitle")}</div>
+              <label className="dsm-fieldLabel">{t("formName")}</label>
+              <input
+                className="dsm-input"
+                value={formName}
+                placeholder={t("formNamePlaceholder")}
+                disabled={creating}
+                onChange={(event) => setFormName(event.target.value)}
+              />
+              <label className="dsm-fieldLabel">{t("formDescription")}</label>
+              <input
+                className="dsm-input"
+                value={formDescription}
+                placeholder={t("formDescriptionPlaceholder")}
+                disabled={creating}
+                onChange={(event) => setFormDescription(event.target.value)}
+              />
+              <label className="dsm-fieldLabel">{t("formWhen")}</label>
+              <input
+                className="dsm-input"
+                value={formWhen}
+                placeholder={t("formWhenPlaceholder")}
+                disabled={creating}
+                onChange={(event) => setFormWhen(event.target.value)}
+              />
+              {formError !== undefined && <div className="dsm-error">{formError}</div>}
+              <div className="dsm-formActions">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={creating}
+                  onClick={() => {
+                    setShowForm(false);
+                  }}
+                >
+                  {t("cancel")}
+                </Button>
+                <Button variant="primary" size="sm" disabled={creating} onClick={() => void submitCreate()}>
+                  {t("create")}
+                </Button>
+              </div>
+            </form>
+          )}
+          <div className="dsm-list">
           {skills === undefined && <div className="dsm-muted">{t("loading")}</div>}
           {skills !== undefined && skills.length === 0 && <div className="dsm-muted">{t("empty")}</div>}
           {skills?.map((skill) => {
@@ -182,7 +278,8 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
               </div>
             );
           })}
-        </div>
+          </div>
+        </>
       )}
       {tab === "mcp" && (
         <div className="dsm-list">

@@ -2,8 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { workspaceLabel, workspaceKey } from "./paths";
 import {
   assertPathInRoots,
+  createGlobalSkill,
   listSkillEntries,
   removeWorkspaceStub,
+  SKILL_NAME_PATTERN,
   toggleGlobalDisabled,
   toggleProjectSkill,
   workspaceDisabledNames,
@@ -106,6 +108,26 @@ export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
             const action = toggleWorkspaceSkill(cwd, name, enable, deps);
             deps.onChanged();
             json(res, 200, { ok: true, action });
+          } catch (error) {
+            reject(res, 400, error instanceof Error ? error.message : String(error));
+          }
+        },
+      }),
+      webServer.register({
+        kind: "exact",
+        path: `${BASE}/skill/create`,
+        handler: async (req, res) => {
+          if (!sameOrigin(req)) return;
+          const body = await readBody(req, res);
+          if (body === undefined) return;
+          const { name, description, whenToUse } = body as { name?: unknown; description?: unknown; whenToUse?: unknown };
+          if (typeof name !== "string" || !SKILL_NAME_PATTERN.test(name)) return reject(res, 400, "技能名必须是 kebab-case（小写字母、数字、连字符）");
+          if (typeof description !== "string" || description.trim() === "") return reject(res, 400, "描述不能为空");
+          if ((typeof whenToUse !== "string" && whenToUse !== undefined) || name.length > 64 || description.length > 512) return reject(res, 400, "参数无效");
+          try {
+            createGlobalSkill(name, description.trim(), typeof whenToUse === "string" && whenToUse.trim() !== "" ? whenToUse.trim() : undefined);
+            deps.onChanged();
+            json(res, 200, { ok: true });
           } catch (error) {
             reject(res, 400, error instanceof Error ? error.message : String(error));
           }

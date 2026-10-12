@@ -4,6 +4,7 @@ declare module "@deepseek-ai/dsh-client-ui-primitives" {
   export const IconSkillOutlineRegular: ComponentType<{ size?: number }>;
   export const IconSettingsOutlineRegular: ComponentType<{ size?: number }>;
   export const IconInfoOutlineRegular: ComponentType<{ size?: number; "aria-hidden"?: boolean | string }>;
+  export const IconPlusOutlineRegular: ComponentType<{ size?: number }>;
   export const IconRefreshOutlineRegular: ComponentType<Record<string, never>>;
   export const Switch: ComponentType<{
     checked: boolean;

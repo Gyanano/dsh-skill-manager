@@ -33,7 +33,16 @@ const CSS = `
 .dsm-trigger { position: relative; display: inline-flex; }
 .dsm-trigger > button { appearance: none; border: none; background: transparent; color: var(--dsw-alias-label-tertiary); width: 28px; height: 28px; border-radius: var(--dsw-radius-sm); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .dsm-trigger > button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
-.dsm-pop { background: var(--dsw-menu-surface-fill, var(--dsw-alias-bg-base, #202020)); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); box-shadow: var(--dsw-elevation-prominent); padding: 12px; font-size: 13px; text-align: left; color: var(--dsw-alias-label-primary); }
+.dsm-pop { background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); box-shadow: var(--dsw-elevation-prominent); padding: 12px; font-size: 13px; text-align: left; color: var(--dsw-alias-label-primary); }
+.dsm-search { box-sizing: border-box; width: 100%; margin-bottom: 10px; padding: 6px 10px; font-size: 13px; line-height: 20px; background: transparent; color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-sm); outline: none; }
+.dsm-search:focus { border-color: var(--dsw-alias-brand-primary); }
+.dsm-search::placeholder { color: var(--dsw-alias-label-caption); }
+.dsm-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); margin-bottom: 12px; }
+.dsm-input { box-sizing: border-box; width: 100%; padding: 6px 10px; font-size: 13px; line-height: 20px; background: transparent; color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-sm); outline: none; }
+.dsm-input:focus { border-color: var(--dsw-alias-brand-primary); }
+.dsm-input::placeholder { color: var(--dsw-alias-label-caption); }
+.dsm-fieldLabel { font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
+.dsm-formActions { display: flex; justify-content: flex-end; gap: 8px; }
 .dsm-pop-header { font-size: 14px; font-weight: 500; line-height: 22px; margin-bottom: 2px; }
 .dsm-pop-path { color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px; margin-bottom: 8px; word-break: break-all; }
 .dsm-pop .dsm-row { padding: 8px; gap: 10px; }
@@ -41,6 +50,7 @@ const CSS = `
 .dsm-pop-footer { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--dsw-alias-border-l); color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px; }
 .dsm-mini { appearance: none; border: 1px solid var(--dsw-alias-border-l); background: transparent; color: var(--dsw-alias-label-tertiary); border-radius: 999px; font-size: 11px; padding: 2px 8px; cursor: pointer; flex: none; }
 .dsm-mini:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.dsm-addButton { border-radius: var(--dsw-radius-md); height: 32px; padding: 0 12px; font-size: 13px; line-height: 20px; }
 `;
 
 export function injectSharedStyles(): void {
