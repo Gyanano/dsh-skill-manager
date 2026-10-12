@@ -34,7 +34,8 @@ const CSS = `
 .dsm-trigger > button { appearance: none; border: none; background: transparent; color: var(--dsw-alias-label-tertiary); width: 28px; height: 28px; border-radius: var(--dsw-radius-sm); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .dsm-trigger > button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
 .dsm-pop { background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); box-shadow: var(--dsw-elevation-prominent); padding: 12px; font-size: 13px; text-align: left; color: var(--dsw-alias-label-primary); }
-.dsm-search { box-sizing: border-box; width: 100%; margin-bottom: 10px; padding: 6px 10px; font-size: 13px; line-height: 20px; background: transparent; color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-sm); outline: none; }
+.dsm-search { box-sizing: border-box; width: 100%; margin-bottom: 10px; padding: 6px 10px; font-size: 13px; line-height: 20px; background: var(--dsw-alias-interactive-bg-subtle, transparent); color: var(--dsw-alias-label-primary); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); outline: none; }
+.dsm-search:hover { border-color: var(--dsw-alias-border-m, var(--dsw-alias-border-l)); }
 .dsm-search:focus { border-color: var(--dsw-alias-brand-primary); }
 .dsm-search::placeholder { color: var(--dsw-alias-label-caption); }
 .dsm-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-md, 8px); margin-bottom: 12px; }

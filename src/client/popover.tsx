@@ -165,7 +165,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
 
   return (
     <div className="dsm-pop">
-      <div className="dsm-pop-header">{t("workspaceTitle")}{data?.label !== undefined ? ` · ${data.label}` : ""}</div>
+      <div className="dsm-pop-header">{t("workspaceTitle")}</div>
       {cwd !== undefined && <div className="dsm-pop-path">{cwd}</div>}
       <div className="dsm-pop-note">{t("workspaceEffect")}</div>
       <input
@@ -214,7 +214,6 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
             );
           })}
           <div className="dsm-section">{t("workspaceGlobal")}</div>
-          <div className="dsm-pop-note">{t("workspaceGlobalHint")}</div>
           {globalRows.map((skill) => {
             const workspaceAllowed = skill.workspaceDisabled !== true;
             const key = `global:${skill.name}`;
