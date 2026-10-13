@@ -114,10 +114,11 @@ export async function addMcpServers(text: string, selected: string[]): Promise<M
 }
 
 function routeErrorText(response: Response, body: { error?: string } | undefined): string {
-  const detail = body?.error ?? `HTTP ${response.status}`;
-  return response.status === 404 || response.status === 405
-    ? `插件服务未加载或版本过旧，请完整重启 DSH 后重试（${detail}）`
-    : detail;
+  if (body?.error !== undefined && body.error !== "") return body.error;
+  if (response.status === 404 || response.status === 405) return "插件服务未加载或版本过旧，请完整重启 DSH 后重试";
+  if (response.status === 413) return "请求内容过大";
+  if (response.status >= 500) return "服务处理请求失败，请稍后重试";
+  return "请求失败，请稍后重试";
 }
 
 async function postResult<T>(path: string, payload: unknown): Promise<T> {
