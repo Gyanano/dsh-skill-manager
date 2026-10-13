@@ -94,6 +94,25 @@ export async function importSkills(token: string, selected: string[]): Promise<{
   return postResult<{ imported: Array<{ id: string; name: string; path: string }> }>(`${BASE}/skill/import/commit`, { token, selected });
 }
 
+export interface McpParseCandidate {
+  serverName: string;
+  transport: "stdio" | "streamable-http" | "unknown";
+  conflict: boolean;
+}
+
+export interface McpImportResult {
+  added: string[];
+}
+
+export async function parseMcpJson(text: string): Promise<McpParseCandidate[]> {
+  const result = await postResult<{ candidates: McpParseCandidate[] }>(`${BASE}/mcp/parse`, { json: text });
+  return result.candidates;
+}
+
+export async function addMcpServers(text: string, selected: string[]): Promise<McpImportResult> {
+  return postResult<McpImportResult>(`${BASE}/mcp/add`, { json: text, selected });
+}
+
 async function postResult<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",

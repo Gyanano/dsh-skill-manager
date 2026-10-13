@@ -213,8 +213,9 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
               <div className="dsm-row" key={entryId}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
+                    <span className={`dsm-dot${checked ? (row.fiberPhase === "active" ? " dsm-dot-ok" : " dsm-dot-bad") : " dsm-dot-off"}`} aria-hidden="true" />
                     <span className="dsm-row-name">{serverName}</span>
-                    {row.fiberPhase !== null && row.fiberPhase !== undefined && row.fiberPhase !== "active" && (
+                    {checked && row.fiberPhase !== null && row.fiberPhase !== undefined && row.fiberPhase !== "active" && (
                       <span className="dsm-badge" data-tone="warn">{row.fiberPhase}</span>
                     )}
                   </div>

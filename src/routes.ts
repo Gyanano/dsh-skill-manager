@@ -12,6 +12,7 @@ import {
   type SkillEntry,
 } from "./skill-files";
 import { saveState, workspaceState, type ManagerState } from "./state";
+import { appendMcpServers, mcpEntryIdOf, parseMcpConfigJson, type McpServerConfig } from "./mcp-config";
 import { createSkillImporter } from "./skill-import";
 import type { HostContext, RegistrySkillSummary } from "./types";
 
@@ -28,12 +29,18 @@ interface HostWebServer {
   register(route: HostRoute): () => void;
 }
 
+interface ProfileContextLike {
+  dir?: string;
+  patchPath?: string;
+}
+
 export interface RouteDeps {
   state: ManagerState;
   extraRoots: ExtraRoots;
   mcpServers: Array<{ id: string; serverName: string; transport: string }>;
   runtimeSkills: () => Promise<RegistrySkillSummary[]>;
   onChanged: () => void;
+  patchPath?: string;
 }
 
 export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
@@ -142,6 +149,61 @@ export function registerRoutes(ctx: HostContext, deps: RouteDeps): () => void {
             const result = importer.importSelected(body.token, body.selected);
             deps.onChanged();
             json(res, 200, { ok: true, ...result });
+          } catch (error) {
+            reject(res, 400, error instanceof Error ? error.message : String(error));
+          }
+        },
+      }),
+      webServer.register({
+        kind: "exact",
+        path: `${BASE}/mcp/parse`,
+        handler: async (req, res) => {
+          if (!sameOrigin(req)) return;
+          const body = await readBody(req, res);
+          if (body === undefined) return;
+          if (typeof body.json !== "string" || body.json.length > MAX_BODY_BYTES) return reject(res, 400, "缺少 JSON 文本");
+          try {
+            const candidates = parseMcpConfigJson(body.json).map((candidate) => ({
+              serverName: candidate.serverName,
+              transport: candidate.transport,
+              conflict: deps.mcpServers.some((row) => row.serverName === candidate.serverName || row.id === mcpEntryIdOf(candidate.serverName)),
+            }));
+            json(res, 200, { ok: true, candidates });
+          } catch (error) {
+            reject(res, 400, error instanceof Error ? error.message : String(error));
+          }
+        },
+      }),
+      webServer.register({
+        kind: "exact",
+        path: `${BASE}/mcp/add`,
+        handler: async (req, res) => {
+          if (!sameOrigin(req)) return;
+          const body = await readBody(req, res);
+          if (body === undefined) return;
+          if (typeof body.json !== "string" || !Array.isArray(body.selected) || !body.selected.every((id) => typeof id === "string")) {
+            return reject(res, 400, "参数无效");
+          }
+          if (deps.patchPath === undefined) return reject(res, 500, "无法定位 profile 配置文件");
+          let parsed;
+          try {
+            parsed = parseMcpConfigJson(body.json);
+          } catch (error) {
+            return reject(res, 400, error instanceof Error ? error.message : String(error));
+          }
+          const chosen: McpServerConfig[] = [];
+          for (const serverName of body.selected as string[]) {
+            const candidate = parsed.find((item) => item.serverName === serverName);
+            if (candidate === undefined) return reject(res, 400, `未知服务器 "${serverName}"`);
+            if (deps.mcpServers.some((row) => row.serverName === candidate.serverName || row.id === mcpEntryIdOf(candidate.serverName))) {
+              return reject(res, 400, `MCP 服务器 "${candidate.serverName}" 已存在`);
+            }
+            chosen.push(normalizeMcpConfig(candidate.serverName, candidate));
+          }
+          try {
+            appendMcpServers(deps.patchPath, chosen);
+            deps.onChanged();
+            json(res, 200, { ok: true, added: chosen.map((server) => server.serverName), hmr: true });
           } catch (error) {
             reject(res, 400, error instanceof Error ? error.message : String(error));
           }
@@ -287,6 +349,31 @@ function toggleWorkspaceSkill(cwd: string, name: string, enable: boolean, deps: 
   if (globalEntry.readOnly) throw new Error("该技能只读，不支持工作区级禁用");
   writeWorkspaceStub(cwd, globalEntry);
   return "workspace-disable";
+}
+
+function normalizeMcpConfig(serverName: string, candidate: { config: Record<string, unknown>; transport: "stdio" | "streamable-http" | "unknown" }): McpServerConfig {
+  const record = candidate.config;
+  if (candidate.transport === "stdio") {
+    if (typeof record.command !== "string" || record.command === "") throw new Error(`服务器 "${serverName}" 缺少 command`);
+    return {
+      serverName,
+      transport: "stdio",
+      command: record.command,
+      ...(Array.isArray(record.args) && record.args.every((item) => typeof item === "string") ? { args: record.args as string[] } : {}),
+      ...(record.env !== undefined && typeof record.env === "object" && record.env !== null && !Array.isArray(record.env)
+        ? { env: Object.fromEntries(Object.entries(record.env as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string")) }
+        : {}),
+    };
+  }
+  if (typeof record.url !== "string" || record.url === "" || !/^https?:\/\//.test(record.url)) throw new Error(`服务器 "${serverName}" 的 url 无效`);
+  return {
+    serverName,
+    transport: "streamable-http",
+    url: record.url,
+    ...(record.headers !== undefined && typeof record.headers === "object" && record.headers !== null && !Array.isArray(record.headers)
+      ? { headers: Object.fromEntries(Object.entries(record.headers as Record<string, unknown>).filter((entry): entry is [string, string] => typeof entry[1] === "string")) }
+      : {}),
+  };
 }
 
 function sameOrigin(req: IncomingMessage): boolean {

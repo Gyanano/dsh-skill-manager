@@ -7,10 +7,11 @@ Third-party skill manager for DeepSeek Harness Desktop 0.2.0-rc.2.
 ## Features
 
 - Global file-skill switches; runtime registrations are read-only.
-- **Add skill** opens a dialog: enter a public GitHub repository URL or an absolute local folder, parse to preview SKILL.md candidates, check the skills to add, confirm, and close the dialog when done. Skills import with their complete directories into `<DSH_HOME>/skills`. Existing skills are never overwritten; source scripts are never executed.
+- **Add** opens a dialog with a Skills / MCP servers switch. Skills mode takes a public GitHub repository URL or an absolute local folder, parses SKILL.md candidates, and imports the checked ones with their complete directories into `<DSH_HOME>/skills`. Existing skills are never overwritten; source scripts are never executed.
+- MCP mode accepts "clean" JSON containing an `mcpServers` object (`#` comment lines tolerated), previews entries, and writes confirmed servers into the profile's `cordis.patch.yml`: comments preserved, file lock, atomic write, duplicate names rejected. stdio (command/args/env) and streamable-http (url/headers) are supported; nothing is installed or run, and reachability depends on each service. The profile patch hot-reloads; restart DSH if a server does not appear.
 - GitHub URLs support `https://github.com/owner/repo` and `/tree/branch` with an unambiguous single-segment ref. Private repositories, subtree URLs and slash-containing refs are unsupported. Git is required for GitHub imports.
 - The composer gear opens per-workspace project skill flags, global-skill overrides and MCP call-time denial for the current workspace.
-- Global MCP enablement uses the official Plugin Manager. MCP creation and external service connections are not implemented.
+- Each MCP row shows a status dot: green = enabled and running, red = enabled but not running, gray = disabled; read from the official Plugin Manager runtime state, without probing services. Global MCP enablement uses the official Plugin Manager. External service connections are not implemented.
 
 ## Scope and catalog updates
 
@@ -20,7 +21,7 @@ Project toggles edit `disable-model-invocation` and `user-invocable`. Project ov
 
 Host filesystem invalidation refreshes catalogs; existing model sessions can receive replacement catalogs on subsequent steps. Previously loaded conversation content is not withdrawn. DSH 0.2.0-rc.2 independently caches `/` candidates per session without subscribing to skill-file changes. A stale `/` entry is not evidence that the model can still load the skill. Refreshing the page or opening a new session triggers client refetching; verify the actual catalog/call result rather than just switch state.
 
-DSH's workspace rename/delete menu has no plugin item slot. This plugin uses a standalone workspace tab and does not patch built-in menus.
+DSH's workspace rename/delete menu has no plugin item slot; the composer gear is the workspace entry.
 
 ## Install and develop
 

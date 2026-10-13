@@ -7,7 +7,7 @@ import type { HostContext } from "./types";
 
 export const name = "skill-manager";
 
-export const inject = ["skills"];
+export const inject = ["skills", "profileContext"];
 
 interface LoaderEntryLike {
   options?: {
@@ -40,6 +40,10 @@ export function apply(ctx: HostContext): void {
     },
     onChanged: () => {},
   };
+  ctx.inject(["profileContext"], (scoped) => {
+    const profile = scoped.get("profileContext") as { patchPath?: string } | undefined;
+    if (profile?.patchPath !== undefined) deps.patchPath = profile.patchPath;
+  });
   ctx.effect(() => registerRoutes(ctx, deps), "skill-manager: http routes");
   installGate(ctx, state, loaderRows.extraRoots);
 }

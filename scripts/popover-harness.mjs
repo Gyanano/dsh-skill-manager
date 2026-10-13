@@ -39,6 +39,8 @@ const fetchStub = (path, init) => {
   const body = path.endsWith("/skill/import/scan")
     ? { ok: true, token: "scan-test", destination: "C:/users/x/.dsh/skills", candidates: [{ id: "alpha", name: "alpha", description: "A skill", relativePath: "skills/alpha", conflict: false }, { id: "beta", name: "beta", description: "B skill", relativePath: "skills/beta", conflict: true }] }
     : path.endsWith("/skill/import/commit") ? { ok: true, imported: [{ id: "alpha", name: "alpha", path: "C:/users/x/.dsh/skills/alpha" }] }
+    : path.endsWith("/mcp/parse") ? { ok: true, candidates: [{ serverName: "new-srv", transport: "stdio", conflict: false }] }
+    : path.endsWith("/mcp/add") ? { ok: true, added: ["new-srv"] }
     : path.endsWith("/global") ? { ok: true, skills: workspaceResponse.global, mcpServers: workspaceResponse.mcpServers }
     : path.startsWith("/plugins/dsh-skill-manager/api/workspace") ? workspaceResponse
     : { ok: true, error: "unexpected route" };
@@ -147,6 +149,8 @@ async function until(predicate, label) {
     if (predicate()) return;
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 25));
   }
+  const modal = dom.window.document.querySelector(".dsm-modal");
+  if (modal !== null) console.error("modal:", modal.textContent.slice(0, 400));
   throw new Error(`harness: timed out waiting for ${label}`);
 }
 
@@ -214,5 +218,30 @@ const doneButton = [...dom.window.document.querySelectorAll(".dsm-modal button")
 assert.ok(doneButton !== undefined);
 doneButton.click();
 await until(() => dom.window.document.querySelector(".dsm-modal-backdrop") === null, "dialog closes after completion");
+
+const mcpJson = JSON.stringify({ mcpServers: { "new-srv": { command: "new-srv", args: ["--mcp"], type: "stdio" } } }, null, 2);
+findButton("addSkill").click();
+await until(() => dom.window.document.querySelector(".dsm-modal-backdrop"), "dialog reopens for mcp");
+const kindSwitch = [...dom.window.document.querySelectorAll(".dsm-kindSwitch .dsm-tab")].find((node) => node.textContent.startsWith("kindMcp"));
+assert.ok(kindSwitch !== undefined, "mcp kind tab present");
+kindSwitch.click();
+await until(() => dom.window.document.querySelector(".dsm-textarea"), "mcp json textarea");
+const textarea = dom.window.document.querySelector(".dsm-textarea");
+Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value").set.call(textarea, mcpJson);
+textarea.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+await until(() => findButton("scanSkills") && !findButton("scanSkills").disabled, "mcp parse enabled");
+findButton("scanSkills").click();
+await until(() => dom.window.document.querySelectorAll(".dsm-importCandidates input[type=checkbox]").length === 1, "mcp candidate preview");
+dom.window.document.querySelector(".dsm-importCandidates input[type=checkbox]").click();
+await until(() => !findButton("importSelected").disabled, "mcp confirm enabled");
+findButton("importSelected").click();
+await until(() => fetchCalls.some((call) => call.path.endsWith("/mcp/add")), "mcp add submitted");
+const mcpAdd = fetchCalls.find((call) => call.path.endsWith("/mcp/add"));
+assert.deepEqual(JSON.parse(mcpAdd.init.body), { json: mcpJson, selected: ["new-srv"] });
+await until(() => dom.window.document.body.textContent.includes("mcpAddDone"), "mcp done summary");
+const closeMcp = [...dom.window.document.querySelectorAll(".dsm-modal button")].find((node) => node.textContent.startsWith("importClose"));
+assert.ok(closeMcp !== undefined);
+closeMcp.click();
+await until(() => dom.window.document.querySelector(".dsm-modal-backdrop") === null, "mcp dialog closes");
 pageRoot.unmount();
-console.log("popover-harness: real React refs/locales, popover lifecycle, import dialog scan/selection/conflict/commit verified");
+console.log("popover-harness: real React refs/locales, popover lifecycle, skill+mcp add dialog flows verified");

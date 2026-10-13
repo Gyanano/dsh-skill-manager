@@ -11,6 +11,7 @@ export interface HostContext {
   skills?: {
     list(options?: { cwd?: string }): Promise<RegistrySkillSummary[]>;
   };
+  root?: unknown;
 }
 
 export interface RegistrySkillSummary {

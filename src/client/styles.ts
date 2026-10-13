@@ -26,6 +26,10 @@ const CSS = `
 .dsm-badge { flex: none; height: 18px; padding: 0 7px; font-size: 10px; line-height: 1; display: inline-flex; align-items: center; border-radius: 999px; border: 1px solid var(--dsw-alias-border-l); color: var(--dsw-alias-label-tertiary); }
 .dsm-badge[data-tone="warn"] { color: var(--dsw-alias-state-error-primary, var(--dsw-alias-label-tertiary)); }
 .dsm-badge[data-tone="ok"] { color: var(--dsw-alias-state-business-primary, var(--dsw-alias-label-tertiary)); }
+.dsm-dot { flex: none; width: 8px; height: 8px; border-radius: 999px; background: var(--dsw-alias-label-caption); }
+.dsm-dot-ok { background: var(--dsw-alias-state-success-primary, #2e9e5b); }
+.dsm-dot-bad { background: var(--dsw-alias-state-error-primary, #e5484d); }
+.dsm-dot-off { opacity: 0.5; }
 .dsm-state { flex: none; color: var(--dsw-alias-label-tertiary); margin: 0; font-size: 13px; line-height: 20px; }
 .dsm-error { color: var(--dsw-alias-state-error-primary, #e5484d); margin: 0; font-size: 13px; line-height: 20px; }
 .dsm-muted { color: var(--dsw-alias-label-tertiary); margin: 0; font-size: 13px; line-height: 20px; }
@@ -49,6 +53,8 @@ const CSS = `
 .dsm-modal { box-sizing: border-box; width: min(520px, 86vw); max-height: min(560px, 80vh); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; background: var(--dsw-alias-bg-base); border: 1px solid var(--dsw-alias-border-l); border-radius: var(--dsw-radius-lg, 12px); box-shadow: var(--dsw-elevation-prominent); padding: 16px; color: var(--dsw-alias-label-primary); font-size: 13px; text-align: left; }
 .dsm-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .dsm-modal-title { font-size: 16px; font-weight: 500; line-height: 24px; }
+.dsm-kindSwitch { display: flex; gap: 16px; }
+.dsm-textarea { resize: vertical; font-family: var(--dsw-font-mono, monospace); font-size: 12px; line-height: 18px; }
 .dsm-pop-header { font-size: 14px; font-weight: 500; line-height: 22px; margin-bottom: 2px; }
 .dsm-pop-path { color: var(--dsw-alias-label-tertiary); font-size: 13px; line-height: 20px; margin-bottom: 8px; word-break: break-all; }
 .dsm-pop .dsm-row { padding: 8px; gap: 10px; }
