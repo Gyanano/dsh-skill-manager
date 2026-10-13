@@ -23,6 +23,7 @@ await build({
   format: "esm",
   platform: "node",
   target: ["node22"],
+  banner: { js: "import { createRequire } from 'node:module';\nvar require = createRequire(import.meta.url);" },
   external: ["@deepseek-ai/*"],
 });
 
