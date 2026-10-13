@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { build } from "esbuild";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -11,7 +11,10 @@ try {
   await build({ entryPoints: [join(process.cwd(), "src/mcp-config.ts")], outfile, bundle: true, format: "esm", platform: "node", target: ["node22"], logLevel: "warning", banner: { js: "import { createRequire as __crc } from 'node:module'; const require = __crc(import.meta.url);" } });
   const module = await import(pathToFileURL(outfile).href);
 
-  const patchPath = join(temporary, "cordis.patch.yml");
+  const profile = join(temporary, "desktop");
+  const patchPath = join(profile, "cordis.patch.yml");
+  mkdirSync(profile, { recursive: true });
+  writeFileSync(join(profile, "package.json"), "{}\n");
   writeFileSync(patchPath, [
     "# keep me",
     "- id: existing",

@@ -1,5 +1,5 @@
 import { closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { parseDocument } from "yaml";
 
 export interface McpServerConfig {
@@ -139,7 +139,7 @@ function readExistingNames(patchPath: string): Set<string> {
 
 function withProfileLock(lockTarget: string, operation: () => void): void {
   const lockPath = `${lockTarget}.dsm-lock`;
-  mkdirSync(lockTarget, { recursive: true });
+  mkdirSync(dirname(lockTarget), { recursive: true });
   const deadline = Date.now() + LOCK_TIMEOUT_MS;
   let handle: number | undefined;
   for (;;) {
