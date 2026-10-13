@@ -221,15 +221,25 @@ async function globalViews(deps: RouteDeps): Promise<Record<string, unknown>[]> 
 }
 
 function workspaceView(cwd: string, deps: RouteDeps): Record<string, unknown> {
-  const entries = listSkillEntries(cwd, deps.extraRoots);
-  const project = entries.filter((entry) => isProject(entry) && !entry.managedStub).map(toView);
+  const all = listSkillEntries(cwd, deps.extraRoots);
+  const project = dedupByName(all.filter((entry) => isProject(entry) && !entry.managedStub)).map(toView);
   const disabled = workspaceDisabledNames(cwd, deps.extraRoots);
-  const global = listSkillEntries(undefined, deps.extraRoots)
-    .filter((entry) => !isProject(entry))
+  const global = dedupByName(listSkillEntries(undefined, deps.extraRoots).filter((entry) => !isProject(entry)))
     .map((entry) => ({ ...toView(entry), workspaceDisabled: disabled.has(entry.name) }));
   const key = workspaceKey(cwd);
   const mcpDenials = deps.state.workspaces[key]?.mcp ?? {};
   return { cwd, label: workspaceLabel(cwd), project, global, mcpDenials, mcpServers: deps.mcpServers };
+}
+
+function dedupByName(entries: SkillEntry[]): SkillEntry[] {
+  const seen = new Set<string>();
+  const result: SkillEntry[] = [];
+  for (const entry of entries) {
+    if (seen.has(entry.name)) continue;
+    seen.add(entry.name);
+    result.push(entry);
+  }
+  return result;
 }
 
 function isProject(entry: SkillEntry): boolean {
