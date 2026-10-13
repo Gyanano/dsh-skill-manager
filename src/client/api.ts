@@ -113,6 +113,13 @@ export async function addMcpServers(text: string, selected: string[]): Promise<M
   return postResult<McpImportResult>(`${BASE}/mcp/add`, { json: text, selected });
 }
 
+function routeErrorText(response: Response, body: { error?: string } | undefined): string {
+  const detail = body?.error ?? `HTTP ${response.status}`;
+  return response.status === 404 || response.status === 405
+    ? `插件服务未加载或版本过旧，请完整重启 DSH 后重试（${detail}）`
+    : detail;
+}
+
 async function postResult<T>(path: string, payload: unknown): Promise<T> {
   const response = await fetch(path, {
     method: "POST",
@@ -120,10 +127,7 @@ async function postResult<T>(path: string, payload: unknown): Promise<T> {
     body: JSON.stringify(payload),
   });
   const body = (await response.json().catch(() => undefined)) as (T & { ok?: boolean; error?: string }) | undefined;
-  if (!response.ok || body?.ok !== true) {
-    const detail = body?.error ?? `HTTP ${response.status}`;
-    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
-  }
+  if (!response.ok || body?.ok !== true) throw new Error(routeErrorText(response, body));
   return body as T;
 }
 
@@ -140,10 +144,7 @@ export async function toggleWorkspaceMcp(
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: { accept: "application/json" } });
   const body = (await response.json().catch(() => undefined)) as (T & { error?: string }) | undefined;
-  if (!response.ok || body === undefined) {
-    const detail = body?.error ?? `HTTP ${response.status}`;
-    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
-  }
+  if (!response.ok || body === undefined) throw new Error(routeErrorText(response, body));
   return body;
 }
 
@@ -154,10 +155,7 @@ async function postJson(path: string, payload: unknown): Promise<void> {
     body: JSON.stringify(payload),
   });
   const body = (await response.json().catch(() => undefined)) as { ok?: boolean; error?: string } | undefined;
-  if (!response.ok || body?.ok !== true) {
-    const detail = body?.error ?? `HTTP ${response.status}`;
-    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
-  }
+  if (!response.ok || body?.ok !== true) throw new Error(routeErrorText(response, body));
 }
 
 export function mcpServersOf(rows: PluginRow[]): PluginRow[] {
