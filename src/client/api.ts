@@ -119,9 +119,12 @@ async function postResult<T>(path: string, payload: unknown): Promise<T> {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  const body = await response.json() as T & { ok?: boolean; error?: string };
-  if (!response.ok || body.ok !== true) throw new Error(body.error ?? `HTTP ${response.status}`);
-  return body;
+  const body = (await response.json().catch(() => undefined)) as (T & { ok?: boolean; error?: string }) | undefined;
+  if (!response.ok || body?.ok !== true) {
+    const detail = body?.error ?? `HTTP ${response.status}`;
+    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
+  }
+  return body as T;
 }
 
 export async function toggleWorkspaceMcp(
@@ -137,8 +140,10 @@ export async function toggleWorkspaceMcp(
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { headers: { accept: "application/json" } });
   const body = (await response.json().catch(() => undefined)) as (T & { error?: string }) | undefined;
-  if (!response.ok) throw new Error(body?.error ?? `HTTP ${String(response.status)}`);
-  if (body === undefined) throw new Error("响应不是有效 JSON");
+  if (!response.ok || body === undefined) {
+    const detail = body?.error ?? `HTTP ${response.status}`;
+    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
+  }
   return body;
 }
 
@@ -149,7 +154,10 @@ async function postJson(path: string, payload: unknown): Promise<void> {
     body: JSON.stringify(payload),
   });
   const body = (await response.json().catch(() => undefined)) as { ok?: boolean; error?: string } | undefined;
-  if (!response.ok || body?.ok !== true) throw new Error(body?.error ?? `HTTP ${String(response.status)}`);
+  if (!response.ok || body?.ok !== true) {
+    const detail = body?.error ?? `HTTP ${response.status}`;
+    throw new Error(response.status === 404 ? `插件服务未加载，请完整重启 DSH 后重试（${detail}）` : detail);
+  }
 }
 
 export function mcpServersOf(rows: PluginRow[]): PluginRow[] {
