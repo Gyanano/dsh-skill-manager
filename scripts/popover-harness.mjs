@@ -179,10 +179,17 @@ assert.ok(enabledServer !== null);
 const disabledGlobal = [...pops()[0].querySelectorAll("button[data-switch]")].find((node) => node.getAttribute("data-switch") === "packed");
 assert.ok(disabledGlobal !== null);
 assert.equal(disabledGlobal.getAttribute("data-disabled"), "true", "globally disabled skill switch locked");
+const packedRow = disabledGlobal.closest(".dsm-row");
+assert.ok(packedRow !== null && packedRow.getAttribute("data-disabled") === "true", "globally disabled row dimmed");
 
 const projectSwitch = [...pops()[0].querySelectorAll("button[data-switch]")].find((node) => node.getAttribute("data-switch") === "local-tool");
 assert.ok(projectSwitch !== null);
 assert.equal(projectSwitch.getAttribute("data-checked"), "true", "enabled project skill renders switch on");
+const activeRow = projectSwitch.closest(".dsm-row");
+assert.ok(activeRow !== null && activeRow.getAttribute("data-disabled") === "false", "active project row not dimmed");
+
+const deniedRow = deniedSwitch.closest(".dsm-row");
+assert.ok(deniedRow !== null && deniedRow.getAttribute("data-disabled") === "true", "denied mcp row dimmed");
 
 assert.ok(fetchCalls.some((call) => call.path.startsWith("/plugins/dsh-skill-manager/api/workspace?cwd=")), "workspace route fetched");
 

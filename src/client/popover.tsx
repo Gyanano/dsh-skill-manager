@@ -187,7 +187,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
             const key = `project:${skill.name}`;
             const description = skill.description ?? "";
             return (
-              <div className="dsm-row" key={key}>
+              <div className="dsm-row" data-disabled={!checked} key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{skill.name}</span>
@@ -220,7 +220,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
             const locked = busy === key || skill.disabled || skill.readOnly || skill.path === undefined;
             const description = skill.description ?? "";
             return (
-              <div className="dsm-row" key={key}>
+              <div className="dsm-row" data-disabled={!workspaceAllowed || skill.disabled} key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{skill.name}</span>
@@ -253,7 +253,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
             const denied = denials[serverName] !== undefined;
             const key = `mcp:${entryId}`;
             return (
-              <div className="dsm-row" key={key}>
+              <div className="dsm-row" data-disabled={denied || row.enabled !== true} key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{serverName}</span>

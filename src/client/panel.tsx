@@ -176,7 +176,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
             const checked = !skill.disabled;
             const locked = skill.readOnly || busy === skill.path;
             return (
-              <div className="dsm-row" key={`${skill.source}:${skill.path ?? skill.name}`}>
+              <div className="dsm-row" data-disabled={!checked} key={`${skill.source}:${skill.path ?? skill.name}`}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{skill.name}</span>
@@ -210,7 +210,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
             const checked = row.enabled === true;
             const locked = busy === entryId;
             return (
-              <div className="dsm-row" key={entryId}>
+              <div className="dsm-row" data-disabled={!checked} key={entryId}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className={`dsm-dot${checked ? (row.fiberPhase === "active" ? " dsm-dot-ok" : " dsm-dot-bad") : " dsm-dot-off"}`} aria-hidden="true" />
