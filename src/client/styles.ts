@@ -19,8 +19,9 @@ const CSS = `
 .dsm-list { display: flex; flex-direction: column; gap: 2px; }
 .dsm-row { display: flex; align-items: center; gap: 14px; padding: 8px; border-radius: var(--dsw-radius-xl); margin: 0 -8px; min-width: 0; }
 .dsm-row:hover { background: var(--dsw-alias-interactive-bg-hover); }
-.dsm-row[data-disabled="true"] .dsm-row-main { opacity: 0.55; }
-.dsm-row[data-disabled="true"] .dsm-row-name { color: var(--dsw-alias-label-tertiary); }
+.dsm-row[data-disabled="true"] { opacity: 0.45; }
+.dsm-row[data-disabled="true"] .dsm-row-name { color: var(--dsw-alias-label-tertiary); text-decoration: line-through; text-decoration-color: var(--dsw-alias-label-caption); text-decoration-thickness: 1px; }
+.dsm-row[data-disabled="true"] .dsm-row-main { pointer-events: none; }
 .dsm-row-main { flex: 1; min-width: 0; }
 .dsm-row-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .dsm-row-name { text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 500; line-height: 20px; overflow: hidden; }

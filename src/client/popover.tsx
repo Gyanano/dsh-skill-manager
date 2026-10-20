@@ -202,7 +202,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
                 </div>
                 <Switch
                   checked={checked}
-                  disabled={busy === key || skill.readOnly}
+                  disabled={busy === key || skill.readOnly || !checked}
                   label={skill.name}
                   onChange={(next) => {
                     void run(key, async () => {
@@ -217,10 +217,10 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
           {globalRows.map((skill) => {
             const workspaceAllowed = skill.workspaceDisabled !== true;
             const key = `global:${skill.name}`;
-            const locked = busy === key || skill.disabled || skill.readOnly || skill.path === undefined;
+            const rowDisabled = !workspaceAllowed || skill.disabled;
             const description = skill.description ?? "";
             return (
-              <div className="dsm-row" data-disabled={!workspaceAllowed || skill.disabled} key={key}>
+              <div className="dsm-row" data-disabled={rowDisabled} key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{skill.name}</span>
@@ -232,7 +232,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
                 </div>
                 <Switch
                   checked={workspaceAllowed}
-                  disabled={locked}
+                  disabled={busy === key || rowDisabled || skill.readOnly || skill.path === undefined}
                   label={skill.name}
                   onChange={(next) => {
                     void run(key, async () => {
@@ -251,16 +251,17 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
             const entryId = row.entryId ?? "";
             const serverName = resolveServerName(entryId, data?.mcpServers);
             const denied = denials[serverName] !== undefined;
+            const rowDisabled = denied || row.enabled !== true;
             const key = `mcp:${entryId}`;
             return (
-              <div className="dsm-row" data-disabled={denied || row.enabled !== true} key={key}>
+              <div className="dsm-row" data-disabled={rowDisabled} key={key}>
                 <div className="dsm-row-main">
                   <div className="dsm-row-title">
                     <span className="dsm-row-name">{serverName}</span>
                     <button
                       type="button"
                       className="dsm-mini"
-                      disabled={busy === key}
+                      disabled={busy === key || rowDisabled}
                       title={t("workspaceGlobalState", { state: row.enabled === true ? t("enabled") : t("disabled") })}
                       onClick={() => {
                         void run(key, async () => {
@@ -275,7 +276,7 @@ export function WorkspacePopover(face: WorkspaceFace): ReactElement {
                 </div>
                 <Switch
                   checked={!denied}
-                  disabled={busy === key}
+                  disabled={busy === key || rowDisabled}
                   label={entryId}
                   onChange={(next) => {
                     void run(key, async () => {

@@ -188,7 +188,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
                 </div>
                 <Switch
                   checked={checked}
-                  disabled={locked}
+                  disabled={locked || !checked}
                   label={skill.name}
                   onChange={(next) => {
                     void flipSkill(skill, next);
@@ -223,7 +223,7 @@ export function SkillsPanelPage(face: PanelFace): ReactElement {
                 </div>
                 <Switch
                   checked={checked}
-                  disabled={locked}
+                  disabled={locked || !checked}
                   label={entryId}
                   onChange={(next) => {
                     void flipServer(row, next);
