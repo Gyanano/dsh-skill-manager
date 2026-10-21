@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createSkillImporter, parseGitHubRepositoryUrl } from "../src/skill-import";
@@ -43,6 +43,15 @@ try {
   assert.deepEqual(readFileSync(join(home, "skills", "alpha", "assets", "binary.bin")), Buffer.from([0, 255, 123]));
   assert.equal(readFileSync(join(home, "skills", "alpha", "scripts", "never-run.js"), "utf8"), "throw new Error('must not execute')");
   assert.equal(readFileSync(join(home, "skills", "alpha", "references", "readme.md"), "utf8"), "Reference");
+  const readOnlySource = join(temporary, "readonly-source");
+  mkdirSync(join(readOnlySource, "locked"), { recursive: true });
+  writeFileSync(join(readOnlySource, "locked", "SKILL.md"), "---\nname: locked\ndescription: Locked\n---\nBody");
+  writeFileSync(join(readOnlySource, "locked", "extra.txt"), "read only payload");
+  chmodSync(join(readOnlySource, "locked", "extra.txt"), 0o444);
+  const readOnlyScan = await importer.scan({ kind: "local", path: readOnlySource });
+  const readOnlyResult = importer.importSelected(readOnlyScan.token, readOnlyScan.candidates.map((c) => c.id));
+  assert.equal(readOnlyResult.imported.length, 1);
+  assert.equal(readFileSync(join(home, "skills", "locked", "extra.txt"), "utf8"), "read only payload");
   assert.throws(() => importer.importSelected(scan.token, [scan.candidates[0].id]));
   const conflict = await importer.scan({ kind: "local", path: source });
   assert.equal(conflict.candidates.find((c) => c.name === "alpha")!.conflict, true);

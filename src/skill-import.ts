@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { constants, closeSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { constants, closeSync, chmodSync, fstatSync, lstatSync, mkdirSync, mkdtempSync, openSync, readSync, readdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { parseSkillFile } from "./frontmatter";
@@ -65,6 +65,22 @@ function safeName(name: string): string {
   return name;
 }
 
+function isRemovalBlocked(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  return code === "EPERM" || code === "EACCES" || code === "EBUSY" || code === "ENOTEMPTY";
+}
+
+function makeWritable(target: string): void {
+  const stat = lstatSync(target);
+  if (stat.isSymbolicLink()) return;
+  if (stat.isDirectory()) {
+    for (const name of readdirSync(target)) makeWritable(join(target, name));
+    try { chmodSync(target, 0o777); } catch { /* best-effort */ }
+    return;
+  }
+  try { chmodSync(target, 0o666); } catch { /* best-effort */ }
+}
+
 export function createSkillImporter(options: SkillImportOptions = {}) {
   const limits = { ttlMs: 5 * 60_000, maxDepth: 20, maxFiles: 10_000, maxBytes: 64 * 1024 * 1024, cloneTimeoutMs: 60_000, ...options };
   for (const value of Object.values(limits)) if (!Number.isSafeInteger(value) || value <= 0) throw new Error("限制必须是正整数");
@@ -76,13 +92,30 @@ export function createSkillImporter(options: SkillImportOptions = {}) {
     const stat = lstatSync(path);
     ownedTemporary.set(path, `${stat.dev}:${stat.ino}`);
   };
-  const removeTemporary = (path: string) => {
+  const removeTemporary = (path: string): void => {
     const expected = ownedTemporary.get(path);
     if (!expected) return;
-    assertSafePath(path);
-    const stat = lstatSync(path);
-    if (`${stat.dev}:${stat.ino}` !== expected) throw new Error("临时目录身份变化，拒绝递归删除");
-    rmSync(path, { recursive: true, force: true });
+    try {
+      assertSafePath(path);
+      const stat = lstatSync(path);
+      if (`${stat.dev}:${stat.ino}` !== expected) {
+        ownedTemporary.delete(path);
+        return;
+      }
+      rmSync(path, { recursive: true, force: true, maxRetries: 5, retryDelay: 120 });
+    } catch (error) {
+      if (!isRemovalBlocked(error)) {
+        ownedTemporary.delete(path);
+        return;
+      }
+      try {
+        makeWritable(path);
+        rmSync(path, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+      } catch (failure) {
+        console.warn(`dsh-skill-manager: 临时目录清理失败，已保留待下次清理：${path} (${String(failure)})`);
+        return;
+      }
+    }
     ownedTemporary.delete(path);
   };
   const cleanupExpired = () => {
@@ -148,7 +181,7 @@ export function createSkillImporter(options: SkillImportOptions = {}) {
     const env: NodeJS.ProcessEnv = {};
     for (const [key, value] of Object.entries(process.env)) if (!/^GIT_|^(HOME|USERPROFILE|XDG_CONFIG_HOME|SSH_ASKPASS)$/i.test(key)) env[key] = value;
     Object.assign(env, { HOME: empty, USERPROFILE: empty, XDG_CONFIG_HOME: empty, GIT_CONFIG_NOSYSTEM: "1", GIT_CONFIG_GLOBAL: join(empty, "config"), GIT_TERMINAL_PROMPT: "0", GIT_ASKPASS: "", GIT_LFS_SKIP_SMUDGE: "1" });
-    const args = ["-c", `core.hooksPath=${empty}`, "-c", "credential.helper=", "-c", "credential.interactive=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", "clone", "--depth", "1", "--single-branch", "--no-recurse-submodules", "--no-local", "--template=", ...(repository.ref ? ["--branch", repository.ref] : []), "--", repository.url, root];
+    const args = ["-c", `core.hooksPath=${empty}`, "-c", "credential.helper=", "-c", "credential.interactive=false", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never", "-c", "core.symlinks=false", "-c", "core.longpaths=true", "clone", "--depth", "1", "--single-branch", "--no-recurse-submodules", "--no-local", "--template=", ...(repository.ref ? ["--branch", repository.ref] : []), "--", repository.url, root];
     await new Promise<void>((accept, reject) => {
       const child = spawn("git", args, { env, cwd: empty, stdio: "ignore", windowsHide: true });
       activeClones.set(temporary, child);
@@ -198,8 +231,7 @@ export function createSkillImporter(options: SkillImportOptions = {}) {
     } catch (error) {
       if (temporary) removeTemporary(temporary);
       throw error;
-    }
-  }
+    }  }
 
   function importSelected(token: string, selectedIds: string[]): { imported: { id: string; name: string; path: string }[] } {
     if (disposed) throw new Error("导入服务已关闭");
