@@ -150,6 +150,33 @@ try {
   assert.equal(invalid.invalidInvocation, true);
   assert.equal(invalid.invocation, undefined);
 
+  const folded = parseSkillFile([
+    "---",
+    "name: adaptive-builder-core",
+    "description: >",
+    "  A compact set of principles for AI-assisted project execution.",
+    "  Use this skill when solving engineering tasks.",
+    "",
+    "  Second paragraph.",
+    "whenToUse: >-",
+    "  When the assistant must balance completeness.",
+    "  Another folded line.",
+    "---",
+    "Body",
+  ].join("\n"));
+  assert.equal(folded.name, "adaptive-builder-core");
+  assert.equal(folded.description, "A compact set of principles for AI-assisted project execution. Use this skill when solving engineering tasks.\nSecond paragraph.");
+  assert.equal(folded.whenToUse, "When the assistant must balance completeness. Another folded line.");
+  const literal = parseSkillFile(["---", "description: |", "  line one", "  line two", "name: literal", "---"].join("\n"));
+  assert.equal(literal.description, "line one\nline two");
+  assert.equal(literal.name, "literal");
+  const inlineBlock = parseSkillFile(["---", "description: >", "  single folded value", "user-invocable: false", "---"].join("\n"));
+  assert.equal(inlineBlock.description, "single folded value");
+  assert.equal(inlineBlock.invocation?.userInvocable, false);
+  const editedBlock = editFrontmatter(["---", "description: >", "  keep me", "  as folded", "---", "Body"].join("\n"), { removeKeys: ["disable-model-invocation"], appendLines: ["disable-model-invocation: true"] });
+  assert.ok(editedBlock.includes("  as folded"), "block scalar continuation preserved by edits");
+  assert.equal(parseSkillFile(editedBlock).description, "keep me as folded");
+
   console.log("selftest: all assertions passed");
 } finally {
   if (originalHome === undefined) delete process.env.DSH_HOME;

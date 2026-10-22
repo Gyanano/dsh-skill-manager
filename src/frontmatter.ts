@@ -40,14 +40,43 @@ export function parseSkillFile(text: string): ParsedSkillFile {
   }
   const data = new Map<string, string>();
   let invalidInvocation = false;
-  for (const line of lines.slice(1, closing)) {
+  const header = lines.slice(1, closing);
+  for (let index = 0; index < header.length; index += 1) {
+    const line = header[index];
     if (line.trim() === "" || line.trimStart().startsWith("#")) continue;
     if (/^\s/.test(line)) continue;
     const separator = line.indexOf(":");
     if (separator === -1) continue;
     const key = line.slice(0, separator).trim();
-    const value = stripQuotes(line.slice(separator + 1).trim());
-    if (key !== "") data.set(key, value);
+    if (key === "") continue;
+    const raw = line.slice(separator + 1).trim();
+    const block = /^([>|])([1-9]?)([+-]?)$/.exec(raw);
+    if (block !== null) {
+      const collected: string[] = [];
+      let cursor = index + 1;
+      let indent = block[2] === "" ? undefined : Number(block[2]);
+      while (cursor < header.length) {
+        const next = header[cursor];
+        if (next.trim() === "") {
+          collected.push("");
+          cursor += 1;
+          continue;
+        }
+        const width = next.length - next.trimStart().length;
+        if (indent === undefined) {
+          if (width === 0) break;
+          indent = width;
+        }
+        if (width < indent) break;
+        collected.push(next.slice(indent));
+        cursor += 1;
+      }
+      while (collected.length > 0 && collected[collected.length - 1] === "") collected.pop();
+      index = cursor - 1;
+      data.set(key, renderBlockScalar(collected, block[1] === ">"));
+      continue;
+    }
+    data.set(key, stripQuotes(raw));
   }
   const invocation = resolveInvocation(data);
   if (invocation === undefined) invalidInvocation = data.has("disable-model-invocation") || data.has("user-invocable");
@@ -131,6 +160,24 @@ function stripQuotes(value: string): string {
     return value.slice(1, -1);
   }
   return value;
+}
+
+function renderBlockScalar(lines: string[], folded: boolean): string {
+  if (lines.length === 0) return "";
+  if (!folded) return lines.join("\n").replace(/\n+$/, "");
+  let rendered = "";
+  let pendingBreaks = 0;
+  for (const line of lines) {
+    if (line === "") {
+      pendingBreaks += 1;
+      continue;
+    }
+    if (rendered === "") rendered = line;
+    else if (pendingBreaks === 0) rendered += ` ${line}`;
+    else rendered += `${"\n".repeat(pendingBreaks)}${line}`;
+    pendingBreaks = 0;
+  }
+  return rendered;
 }
 
 function yamlScalar(value: string): string {
